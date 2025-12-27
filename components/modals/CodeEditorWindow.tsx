@@ -2,107 +2,127 @@
 
 import React, { useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, RotateCcw, CheckCircle2, XCircle, Terminal, FileCode } from "lucide-react";
-// 1. Import DialogTitle
+import { Play, RotateCcw, FileCode, Bot, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner"; // Assuming you have sonner or use alert
 
 interface CodeEditorWindowProps {
   isOpen: boolean;
   onClose: () => void;
-  station: any; // The station object from config
+  station: any;
 }
 
 export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEditorWindowProps) {
-  const [code, setCode] = useState("// Write your solution here...\n\nfunction solve() {\n  return true;\n}");
-  const [output, setOutput] = useState<string>("");
+  const [code, setCode] = useState("// Write your solution here...\nconsole.log('Hello NetVerse');");
+  const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
-  const handleRun = () => {
+  // 1. RUN CODE LOGIC
+  const handleRun = async () => {
     setIsRunning(true);
-    setOutput("Compiling...");
-    
-    // MOCK BACKEND CALL (Replace with real Cloud Run fetch later)
-    setTimeout(() => {
+    setOutput("Sending to Execution Container...");
+
+    try {
+      const res = await fetch("/api/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, language: "javascript" }),
+      });
+      const data = await res.json();
+      setOutput(data.output || "Execution Complete (No Output)");
+    } catch (err) {
+      setOutput("Error: Could not connect to execution engine.");
+    } finally {
       setIsRunning(false);
-      setOutput("Result: Success\nExecution Time: 42ms\n\nTest Case 1: PASSED\nTest Case 2: PASSED");
-    }, 1500);
+    }
+  };
+
+  // 2. ASK AI LOGIC
+  const handleAskAI = async () => {
+    if (!output || output.includes("Sending")) {
+      toast.error("Run your code first to generate an output/error!");
+      return;
+    }
+    
+    setIsAiLoading(true);
+    try {
+      const res = await fetch("/api/hint", {
+        method: "POST",
+        body: JSON.stringify({ code, error: output }),
+      });
+      const data = await res.json();
+      
+      // Append AI Hint to the console output
+      setOutput((prev) => prev + "\n\n🤖 AI LAB ASSISTANT:\n" + data.hint);
+    } catch (err) {
+      toast.error("AI Assistant is offline.");
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[95vw] h-[90vh] bg-zinc-950 border-zinc-800 p-0 flex flex-col overflow-hidden">
-        
-        {/* --- HEADER --- */}
-        <div className="h-12 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between px-4">
+      <DialogContent className="max-w-[90vw] h-[85vh] bg-zinc-950 border-zinc-800 flex flex-col p-0">
+        {/* HEADER */}
+        <div className="h-14 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <div className={`p-1.5 rounded ${station?.color || "bg-blue-500"}`}>
-              <FileCode className="w-4 h-4 text-white" />
-            </div>
+            <div className="p-2 bg-blue-600 rounded-md"><FileCode className="w-5 h-5 text-white"/></div>
             <div>
-              {/* 2. Replace <h2> with <DialogTitle> and keep the styling */}
-              <DialogTitle className="text-sm font-bold text-zinc-100">
-                {station?.label || "Coding Task"}
-              </DialogTitle>
-              <p className="text-[10px] text-zinc-400">ID: {station?.id}</p>
+              <DialogTitle className="text-white font-mono">{station?.label || "Dev Terminal"}</DialogTitle>
+              <div className="text-[10px] text-zinc-400">Environment: Node.js v18 (Secure)</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setCode("")} className="text-zinc-400 hover:text-white">
-              <RotateCcw className="w-3 h-3 mr-2" /> Reset
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCode("")} className="border-zinc-700 text-zinc-400">
+              <RotateCcw className="w-4 h-4 mr-2"/> Reset
             </Button>
+            
+            {/* AI BUTTON */}
+            <Button 
+              size="sm" 
+              variant="secondary"
+              onClick={handleAskAI} 
+              disabled={isAiLoading}
+              className="bg-purple-900/50 text-purple-200 hover:bg-purple-900 border border-purple-700"
+            >
+              {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Bot className="w-4 h-4 mr-2"/>}
+              Ask AI Hint
+            </Button>
+
+            {/* RUN BUTTON */}
             <Button size="sm" onClick={handleRun} disabled={isRunning} className="bg-green-600 hover:bg-green-500 text-white">
-              {isRunning ? "Running..." : <><Play className="w-3 h-3 mr-2" /> Run Code</>}
+              {isRunning ? <Loader2 className="w-4 h-4 animate-spin"/> : <Play className="w-4 h-4 mr-2"/>}
+              Run Code
             </Button>
           </div>
         </div>
 
-        {/* --- MAIN SPLIT VIEW --- */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* EDITOR BODY */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          <div className="flex-1 border-r border-zinc-800">
+             <Editor
+               height="100%"
+               defaultLanguage="javascript"
+               theme="vs-dark"
+               value={code}
+               onChange={(val) => setCode(val || "")}
+               options={{ minimap: { enabled: false }, fontSize: 14, padding: { top: 20 } }}
+             />
+          </div>
           
-          {/* LEFT: PROBLEM STATEMENT (Only if it's an Exam/Lab) */}
-          <div className="w-1/3 border-r border-zinc-800 bg-zinc-900/50 p-6 overflow-y-auto text-zinc-300">
-            <h1 className="text-xl font-bold text-white mb-4">Problem: Invert Binary Tree</h1>
-            <p className="mb-4 text-sm leading-relaxed">
-              Given the root of a binary tree, invert the tree, and return its root.
-            </p>
-            <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-lg mb-4 font-mono text-xs">
-              <span className="text-blue-400">Input:</span> root = [4,2,7,1,3,6,9]<br/>
-              <span className="text-green-400">Output:</span> [4,7,2,9,6,3,1]
+          {/* CONSOLE */}
+          <div className="h-1/3 lg:h-auto lg:w-1/3 bg-[#0d0d0d] flex flex-col font-mono text-sm">
+            <div className="px-4 py-2 bg-zinc-900 border-b border-zinc-800 text-zinc-400 text-xs font-bold tracking-wider">
+              TERMINAL OUTPUT
             </div>
-            <h3 className="font-bold text-white mb-2 text-sm">Constraints:</h3>
-            <ul className="list-disc pl-5 text-xs space-y-1 text-zinc-400">
-              <li>The number of nodes in the tree is in the range [0, 100].</li>
-              <li>-100 &lt;= Node.val &lt;= 100</li>
-            </ul>
-          </div>
-
-          {/* MIDDLE: EDITOR */}
-          <div className="flex-1 flex flex-col bg-[#1e1e1e]">
-            <Editor
-              height="60%"
-              defaultLanguage="javascript"
-              theme="vs-dark"
-              value={code}
-              onChange={(val) => setCode(val || "")}
-              options={{ minimap: { enabled: false }, fontSize: 14 }}
-            />
-            
-            {/* BOTTOM: OUTPUT CONSOLE */}
-            <div className="flex-1 border-t border-zinc-800 bg-zinc-950 flex flex-col">
-              <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex items-center px-4">
-                <span className="text-xs font-bold text-zinc-400 flex items-center gap-2">
-                  <Terminal className="w-3 h-3" /> CONSOLE OUTPUT
-                </span>
-              </div>
-              <div className="p-4 font-mono text-sm text-zinc-300 whitespace-pre-wrap overflow-auto">
-                {output || <span className="text-zinc-600 italic">Click "Run Code" to see output...</span>}
-              </div>
+            <div className="p-4 text-zinc-300 whitespace-pre-wrap overflow-auto flex-1">
+              {output || <span className="text-zinc-600 italic">// Output will appear here...</span>}
             </div>
           </div>
-
         </div>
       </DialogContent>
     </Dialog>

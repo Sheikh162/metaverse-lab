@@ -1,24 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import NetVerseEngine from "@/components/game/NetVerseEngine";
 import LobbyScreen from "@/components/landing/LobbyScreen";
+import NetVerseEngine from "@/components/game/NetVerseEngine";
 
 export default function Home() {
-  const [inGame, setInGame] = useState(false);
-  const [userData, setUserData] = useState({ name: "", role: "" });
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [userData, setUserData] = useState({ name: "Student", role: "student" });
 
-  if (!inGame) {
-    return <LobbyScreen onJoin={(name, role) => {
-      setUserData({ name, role });
-      setInGame(true);
-    }} />;
-  }
+  const handleJoin = (name: string, role: string) => {
+    setUserData({ name, role });
+    setIsGameActive(true); // <--- Triggers the screen swap
+  };
 
   return (
-    <main className="dark w-full h-screen overflow-hidden bg-black">
-      {/* Pass user data if you want to display name above head later */}
-      <NetVerseEngine />
+    <main className="min-h-screen bg-black">
+      {!isGameActive ? (
+        <LobbyScreen onJoin={handleJoin} />
+      ) : (
+        // Pass the captured name to the engine
+        <NetVerseEngine username={userData.name} />
+      )}
     </main>
   );
 }

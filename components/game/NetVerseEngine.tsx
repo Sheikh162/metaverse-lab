@@ -10,17 +10,39 @@ import Station from "./Station";
 import WorldMap from "./WorldMap";
 import StationModalManager from "./StationModalManager";
 import MiniMap from "@/components/hud/MiniMap";
+import { RemotePlayer, useMultiplayer } from "@/hooks/useMultiplayer";
+import { useAuth } from "../providers/AuthProvider";
 // import TaskOverlay from "@/components/hud/TaskOverlay"; 
 
-export default function NetVerseEngine() {
+export default function NetVerseEngine({username}:{
+  username: string;
+}) {
+  
+  const getChatId = (uid1: string, uid2: string) => {
+  return [uid1, uid2].sort().join("_"); 
+};
+
+const { user } = useAuth();
   // --- 1. STATE ---
   // Start player in the middle of the large map
   const [pos, setPos] = useState({ x: GAME_CONFIG.mapWidth / 2, y: GAME_CONFIG.mapHeight / 2 });
   const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
-  
+  const [isMoving, setIsMoving] = useState(false);
   // Interaction State
   const [activeStation, setActiveStation] = useState<GameStation | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+// --- NEW STATE FOR CHAT ---
+  const [closestPlayer, setClosestPlayer] = useState<RemotePlayer | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string>("");
+
+  const { otherPlayers } = useMultiplayer(
+    "campus-lobby", // The Room ID (can be dynamic later)
+    pos,            // My Current X/Y
+    facing,         // My Current Direction
+    isMoving        // Am I walking?
+  );
 
   // --- 2. GAME LOOP ---
   useEffect(() => {
@@ -32,6 +54,9 @@ export default function NetVerseEngine() {
 
     const gameLoop = () => {
       if (isDialogOpen) return; // Pause movement if modal is open
+
+      const moving = keysPressed.size > 0;
+      setIsMoving(moving);
 
       setPos((prev) => {
         let { x, y } = prev;
@@ -62,6 +87,30 @@ export default function NetVerseEngine() {
         };
       });
 
+      // 1. FIND CLOSEST PLAYER (Add this block)
+      //let closest: RemotePlayer | null  = null;
+      let closest: any  = null;
+      let minDist = 60; // Interaction radius
+
+      otherPlayers.forEach((p) => {
+        const dist = Math.hypot(p.x - pos.x, p.y - pos.y);
+        console.log(`Distance to ${p.username}: ${Math.round(dist)}px`);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = p;
+        }
+      });
+      setClosestPlayer(closest);
+
+      // 2. HANDLE "E" KEY FOR CHAT
+      // If we are close to someone AND chat isn't already open
+      if (keysPressed.has("e") && closest && !isChatOpen && user) {
+        const chatId = getChatId(user.uid, closest.id);
+        setCurrentChatId(chatId);
+        setIsChatOpen(true);
+        keysPressed.delete("e"); // Prevent double trigger
+      }
+
       // Check Station Proximity (Simple Distance Check)
       const nearby = STATIONS.find((s) => {
         const dx = Math.abs(pos.x - s.x);
@@ -90,6 +139,8 @@ export default function NetVerseEngine() {
     };
   }, [pos, isDialogOpen]); 
 
+
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-black overflow-hidden relative">
       
@@ -98,8 +149,7 @@ export default function NetVerseEngine() {
         <h1 className="text-white font-bold text-xl tracking-widest">NETVERSE <span className="text-blue-500">LABS</span></h1>
         <div className="flex items-center gap-2 text-slate-400 text-xs mt-1">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
-          Connection Stable • {Math.round(pos.x)}, {Math.round(pos.y)}
-        </div>
+Logged in as {username} • {Math.round(pos.x)}, {Math.round(pos.y)}        </div>
       </div>
 
       <MiniMap playerPos={pos} />
@@ -125,6 +175,16 @@ export default function NetVerseEngine() {
           {/* 1. Render Map (CSS Version) */}
           <WorldMap />
 
+          {otherPlayers.map((p) => (
+            <Player 
+              key={p.id}
+              pos={{ x: p.x, y: p.y }}
+              facing={p.facing}
+              isMoving={p.isMoving}
+              username={p.username}
+            />
+          ))}
+
           {/* 2. Render Stations */}
           {STATIONS.map((station) => (
             <Station 
@@ -135,7 +195,7 @@ export default function NetVerseEngine() {
           ))}
 
           {/* 3. Render Player (CSS Version) */}
-          <Player pos={pos} facing={facing} />
+          <Player pos={pos} facing={facing} username={username} />
 
         </motion.div>
       </div>

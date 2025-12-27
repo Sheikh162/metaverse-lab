@@ -46,6 +46,10 @@ export function useSpriteAnimator(
     };
   }, [isMoving, speed]);
 
+// ... imports ...
+
+// ... inside the hook ...
+
   const getRow = () => {
     switch(facing) {
       case 'down': return 0;
@@ -56,7 +60,10 @@ export function useSpriteAnimator(
     }
   };
 
+  // !!! CRITICAL MATH FIX !!!
+  // Frame width must match FRAME_W from Player.tsx (16)
+  // Row height must match FRAME_H from Player.tsx (16)
   return { 
-    backgroundPosition: `-${frame * 32}px -${getRow() * 48}px` 
+    backgroundPosition: `-${frame * 16}px -${getRow() * 16}px` 
   };
 }
