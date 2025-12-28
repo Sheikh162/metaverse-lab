@@ -2,34 +2,43 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
+    // 1. Get the code and language from the frontend
     const { code, language } = await req.json();
 
-    // 1. REAL IMPLEMENTATION: This would send code to a Google Cloud Run container.
-    // 2. HACKATHON SHORTCUT: We use Piston (a public API) to simulate that environment instantly.
-    
-    const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+    // 2. Point to your Custom Express Backend (via ngrok)
+    const BACKEND_URL = "http://unthrown-clemently-isabella.ngrok-free.dev/execute";
+
+    // 3. Send the request to the backend
+    // Your Express server expects JSON: { "code": "...", "language": "..." }
+    const response = await fetch(BACKEND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        language: language || "javascript",
-        version: "*",
-        files: [{ content: code }],
+        code: code,
+        language: language, 
       }),
     });
 
+    // 4. Get the result
+    // Your Express server returns: { output, isError, executionTime }
     const result = await response.json();
 
-    if (result.run) {
-      return NextResponse.json({
-        output: result.run.stdout || result.run.stderr || "No output returned.",
-        isError: !!result.run.stderr,
-        executionTime: "120ms" // You can mock this or calculate real time
-      });
+    // 5. Return it to the frontend
+    if (response.ok) {
+        return NextResponse.json(result);
+    } else {
+        // Handle cases where the Express server returns a 400/500 error explicitly
+        return NextResponse.json(
+            { output: result.output || "Execution failed.", isError: true }, 
+            { status: response.status }
+        );
     }
 
-    return NextResponse.json({ output: "Execution failed to start." }, { status: 500 });
-
   } catch (error) {
-    return NextResponse.json({ output: "Internal Server Error" }, { status: 500 });
+    console.error("Proxy Error:", error);
+    return NextResponse.json(
+        { output: "Internal Server Error: Could not reach the execution engine." }, 
+        { status: 500 }
+    );
   }
 }
