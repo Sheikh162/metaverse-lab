@@ -151,11 +151,16 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
 
              {/* Language Select */}
              <div className="relative ml-4">
-               <select 
-                 value={activeLang.id}
-                 onChange={(e) => setActiveLang(LANGUAGES.find(l => l.id === e.target.value) || LANGUAGES[0])}
-                 className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
-               >
+                <select 
+                  value={activeLang.id}
+                  onChange={(e) => {
+                    const selected = LANGUAGES.find(l => l.id === e.target.value) || LANGUAGES[0];
+                    setActiveLang(selected);
+                    setCode(selected.snippet); // <--- THIS LINE WAS MISSING!
+                    setOutput("");             // Optional: Clear old output
+                  }}
+                  className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
                  {LANGUAGES.map(lang => (
                    <option key={lang.id} value={lang.id}>{lang.label}</option>
                  ))}
