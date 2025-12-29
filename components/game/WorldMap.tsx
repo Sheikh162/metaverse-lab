@@ -70,7 +70,7 @@ export default function WorldMap() {
       {/* 1. THE PIXEL ART MAP */}
       {/* The 'pixelated' class ensures it stays sharp and doesn't get blurry */}
       <Image 
-        src="/maps/lab-map-v1.png" 
+        src="/maps/lab-final.png" 
         alt="NetVerse Campus"
         fill
         className="object-cover pixelated" 
