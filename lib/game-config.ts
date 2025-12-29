@@ -90,26 +90,17 @@ export const STATIONS: GameStation[] = [
     id: "exam-desk-01",
     label: "Exam Station 1",
     type: "exam",
-    x: 640,  // X Coordinate for Exam Hall
-    y: 640,  // Y Coordinate for Exam Hall
+    x: 1850,  // X Coordinate for Exam Hall
+    y: 550,  // Y Coordinate for Exam Hall
     color: "bg-blue-500",
     icon: Monitor
-  },
-  {
-    id: "mainframe-core",
-    label: "Server Farm",
-    type: "server",
-    x: 2240, // X Coordinate for Server Room
-    y: 480,  // Y Coordinate for Server Room
-    color: "bg-red-600",
-    icon: Server
   },
   {
     id: "cafeteria-table",
     label: "Chill Zone",
     type: "common",
-    x: 1184, // X Coordinate for Cafeteria
-    y: 1280, // Y Coordinate for Cafeteria
+    x: 550, // X Coordinate for Cafeteria
+    y: 535, // Y Coordinate for Cafeteria
     color: "bg-green-500",
     icon: Coffee
   }

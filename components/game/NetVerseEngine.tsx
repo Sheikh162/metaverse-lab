@@ -25,8 +25,10 @@ export default function NetVerseEngine({ username }: { username: string }) {
   const { user } = useAuth();
   
   // --- 1. STATE ---
-  const [pos, setPos] = useState({ x: GAME_CONFIG.mapWidth / 2, y: GAME_CONFIG.mapHeight / 2 });
-  const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
+const [pos, setPos] = useState({ 
+  x: 1200,   // Middle of the map width
+  y: 1500    // Bottom of the map (Spawn Circle)
+});  const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
   const [isMoving, setIsMoving] = useState(false);
   
   // Interaction State
