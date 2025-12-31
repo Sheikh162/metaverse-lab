@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import Editor from "@monaco-editor/react";
 import { 
   Play, RotateCcw, Save, Loader2, Terminal, X, 
-  ChevronDown, Code2, FileText, RefreshCw 
+  ChevronDown, Code2, FileText, RefreshCw, Bot 
 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useAuth } from "@/components/providers/AuthProvider"; // Assuming you have this
+import { useAuth } from "@/components/providers/AuthProvider";
 import { CloudFile, CloudAPI } from "@/lib/cloud-shell-api";
-import { DialogTitle } from "@radix-ui/react-dialog";
 
 // --- LANGUAGE CONFIG ---
+// IDs match Monaco Editor language identifiers
 const LANGUAGES = [
   { id: "cpp", label: "C++ (GCC)", snippet: "#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello NetVerse\";\n\treturn 0;\n}" },
   { id: "python", label: "Python 3", snippet: "print('Hello NetVerse')" },
@@ -29,18 +30,19 @@ interface CodeEditorWindowProps {
 export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEditorWindowProps) {
   const { user } = useAuth();
   
-  // State
+  // --- STATE ---
   const [activeLang, setActiveLang] = useState(LANGUAGES[0]);
   const [code, setCode] = useState(LANGUAGES[0].snippet);
   const [output, setOutput] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
   
+  // Loading States
+  const [isRunning, setIsRunning] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+
   // File System State
   const [currentFilename, setCurrentFilename] = useState("main.cpp");
   const [files, setFiles] = useState<CloudFile[]>([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   // --- 1. INITIAL LOAD ---
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     setIsRunning(true);
     setOutput("📡 Sending to Cloud VM...");
     
-    // Call our new API
+    // Call Cloud API
     const result = await CloudAPI.execute(code, activeLang.id);
     
     if (result.isError) {
@@ -77,10 +79,9 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
   const handleSave = async () => {
     if (!user?.email) return toast.error("You must be logged in to save.");
     
-    // Simple prompt for new files (In a real app, use a proper modal input)
     let filename = currentFilename;
-    if (filename === "untitled") {
-      const input = prompt("Enter filename (e.g., solution.cpp):");
+    if (filename === "untitled" || filename === "main.cpp") {
+      const input = prompt("Enter filename to save (e.g., mysolution.cpp):");
       if (!input) return;
       filename = input;
     }
@@ -108,7 +109,9 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     if (data.content) {
       setCode(data.content);
       setCurrentFilename(filename);
-      // Auto-detect language based on extension (simple check)
+      setOutput(""); 
+      
+      // Auto-detect language based on extension
       if (filename.endsWith(".py")) setActiveLang(LANGUAGES[1]);
       else if (filename.endsWith(".js")) setActiveLang(LANGUAGES[2]);
       else if (filename.endsWith(".go")) setActiveLang(LANGUAGES[3]);
@@ -116,23 +119,40 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     }
   };
 
-  // Helper: Tab Indentation
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = e.currentTarget.selectionStart;
-      const end = e.currentTarget.selectionEnd;
-      const newValue = code.substring(0, start) + "  " + code.substring(end);
-      setCode(newValue);
-      setTimeout(() => {
-        if (textAreaRef.current) textAreaRef.current.selectionStart = textAreaRef.current.selectionEnd = start + 2;
-      }, 0);
+  // --- 3. AI ASSISTANT LOGIC ---
+  const handleAskAI = async () => {
+    if (!output) {
+      toast.error("Run your code first to generate an output/error for the AI to analyze!");
+      return;
+    }
+    
+    setIsAiLoading(true);
+    try {
+      // Assuming you have a Next.js API route at /api/hint
+      const res = await fetch("/api/hint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          code, 
+          error: output, 
+          language: activeLang.id 
+        }),
+      });
+      
+      if (!res.ok) throw new Error("AI Service unavailable");
+      
+      const data = await res.json();
+      setOutput((prev) => prev + "\n\n🤖 AI LAB ASSISTANT:\n" + data.hint);
+    } catch (err) {
+      toast.error("AI Assistant is offline.");
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-      {/* FORCE FULL WIDTH/HEIGHT with !w-[95vw] */}
+      {/* FORCE FULL WIDTH/HEIGHT */}
       <DialogContent className="!max-w-[95vw] !w-[95vw] h-[90vh] bg-[#1e1e1e] border-zinc-800 p-0 gap-0 flex flex-col overflow-hidden sm:rounded-xl shadow-2xl">
         
         {/* --- HEADER --- */}
@@ -140,27 +160,29 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
           {/* Left: Title & File Name */}
           <div className="flex items-center gap-4">
              <div className="flex flex-col">
+               {/* DialogTitle for Shadcn Accessibility */}
                <DialogTitle className="text-white font-bold text-sm flex items-center gap-2">
                  <Code2 className="w-4 h-4 text-blue-400"/>
-                 {station?.label || "IDE"}
+                 {station?.label || "IDE Environment"}
                </DialogTitle>
-               <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
+               
+               <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
                  {currentFilename} {files.find(f => f.name === currentFilename) ? "(Saved)" : "(Unsaved)"}
                </span>
              </div>
 
              {/* Language Select */}
-             <div className="relative ml-4">
-                <select 
+             <div className="relative ml-4 group">
+               <select 
                   value={activeLang.id}
                   onChange={(e) => {
                     const selected = LANGUAGES.find(l => l.id === e.target.value) || LANGUAGES[0];
                     setActiveLang(selected);
-                    setCode(selected.snippet); // <--- THIS LINE WAS MISSING!
-                    setOutput("");             // Optional: Clear old output
+                    setCode(selected.snippet); // Update Code
+                    setOutput("");             // Clear Output
                   }}
-                  className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
+                  className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer hover:border-zinc-500 transition-colors"
+               >
                  {LANGUAGES.map(lang => (
                    <option key={lang.id} value={lang.id}>{lang.label}</option>
                  ))}
@@ -175,17 +197,31 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
               <RotateCcw className="w-4 h-4 mr-2"/> Reset
             </Button>
             
+            {/* AI BUTTON */}
+            <Button 
+              size="sm" 
+              variant="secondary"
+              onClick={handleAskAI} 
+              disabled={isAiLoading || !output}
+              className="bg-purple-900/20 text-purple-300 hover:bg-purple-900/40 border border-purple-500/30"
+            >
+              {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Bot className="w-4 h-4 sm:mr-2"/>}
+              <span className="hidden sm:inline">AI Hint</span>
+            </Button>
+
+            {/* SAVE BUTTON */}
             <Button size="sm" variant="secondary" onClick={handleSave} className="bg-blue-900/20 text-blue-300 hover:bg-blue-900/40 border border-blue-500/30">
               <Save className="w-4 h-4 mr-2"/> Save
             </Button>
 
-            <Button size="sm" onClick={handleRun} disabled={isRunning} className="bg-green-600 hover:bg-green-500 text-white min-w-[100px]">
+            {/* RUN BUTTON */}
+            <Button size="sm" onClick={handleRun} disabled={isRunning} className="bg-green-600 hover:bg-green-500 text-white min-w-[100px] shadow-lg shadow-green-900/20">
               {isRunning ? <Loader2 className="w-4 h-4 animate-spin"/> : <Play className="w-4 h-4 mr-2 fill-current"/>}
               Run
             </Button>
             
             <div className="w-px h-6 bg-zinc-700 mx-2"/>
-            <Button size="icon" variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white rounded-full w-8 h-8">
+            <Button size="icon" variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white rounded-full w-8 h-8 hover:bg-red-500/20 hover:text-red-400">
               <X className="w-5 h-5"/>
             </Button>
           </div>
@@ -226,24 +262,23 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
           {/* RIGHT: EDITOR + TERMINAL */}
           <div className="flex-1 flex flex-col min-w-0">
             
-            {/* TOP: EDITOR */}
-            <div className="flex-1 relative bg-[#1e1e1e] flex min-h-0">
-              {/* Line Numbers */}
-              <div className="w-10 bg-[#1e1e1e] border-r border-zinc-800 text-zinc-600 text-right pr-2 pt-4 text-xs font-mono select-none shrink-0">
-                  {code.split('\n').map((_, i) => (
-                    <div key={i} className="leading-6">{i + 1}</div>
-                  ))}
-              </div>
-
-              <textarea
-                ref={textAreaRef}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onKeyDown={handleKeyDown}
-                spellCheck={false}
-                className="flex-1 bg-[#1e1e1e] text-zinc-300 p-4 font-mono text-sm leading-6 resize-none focus:outline-none"
-                style={{ tabSize: 2 }}
-              />
+            {/* TOP: MONACO EDITOR */}
+            <div className="flex-1 relative bg-[#1e1e1e]">
+               <Editor
+                 height="100%"
+                 language={activeLang.id}
+                 theme="vs-dark"
+                 value={code}
+                 onChange={(value) => setCode(value || "")}
+                 options={{
+                   minimap: { enabled: false },
+                   fontSize: 14,
+                   lineNumbers: "on",
+                   scrollBeyondLastLine: false,
+                   automaticLayout: true,
+                   padding: { top: 16 }
+                 }}
+               />
             </div>
 
             {/* BOTTOM: TERMINAL */}
