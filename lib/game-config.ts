@@ -1,68 +1,4 @@
-// import { LucideIcon, Monitor, Coffee, Server, ShieldAlert, Cpu } from "lucide-react";
-
-// export const GAME_CONFIG = {
-//   mapWidth: 2400,
-//   mapHeight: 1600,
-//   viewportWidth: 900,
-//   viewportHeight: 600,
-//   playerSize: 40,
-//   playerSpeed: 12,
-// };
-
-// // --- STATIONS ---
-// export interface GameStation {
-//   id: string;
-//   label: string;
-//   type: "exam" | "server" | "common" | "security" | "dev";
-//   x: number;
-//   y: number;
-//   color: string;
-//   icon: LucideIcon;
-//   description?: string;
-// }
-
-// export const STATIONS: GameStation[] = [
-//   {
-//     id: "exam-desk-01",
-//     label: "Exam Desk A1",
-//     type: "exam",
-//     x: 600,
-//     y: 550,
-//     color: "bg-blue-500",
-//     icon: Monitor
-//   },
-//   {
-//     id: "mainframe-core",
-//     label: "Mainframe",
-//     type: "server",
-//     x: 2050,
-//     y: 400,
-//     color: "bg-red-600",
-//     icon: Server
-//   },
-//   {
-//     id: "security-hub",
-//     label: "Proctor Hub",
-//     type: "security",
-//     x: 200,
-//     y: 200,
-//     color: "bg-slate-700",
-//     icon: ShieldAlert
-//   },
-//   {
-//     id: "cafeteria-table",
-//     label: "Cafeteria",
-//     type: "common",
-//     x: 1300,
-//     y: 900,
-//     color: "bg-green-500",
-//     icon: Coffee
-//   }
-// ];
-
-// export const WALLS = []; // Empty for CSS version usually
-
-import { LucideIcon, Monitor, Coffee, Server, ShieldAlert } from "lucide-react";
+import { LucideIcon, Monitor, Coffee, GraduationCap } from "lucide-react";
 
 export const GAME_CONFIG = {
   mapWidth: 2400,
@@ -73,16 +9,19 @@ export const GAME_CONFIG = {
   playerSpeed: 12,
 };
 
-// --- STATIONS ---
+export type StationType = "exam" | "server" | "common" | "security" | "dev" | "npc-teacher" | "code-editor";
+
 export interface GameStation {
   id: string;
   label: string;
-  type: "exam" | "server" | "common" | "security" | "dev";
+  type: StationType;
   x: number;
   y: number;
-  color: string;
+  color?: string;
   icon: LucideIcon;
   description?: string;
+  interactionRadius?: number;
+  status?: "online" | "available" | "offline";
 }
 
 export const STATIONS: GameStation[] = [
@@ -90,8 +29,8 @@ export const STATIONS: GameStation[] = [
     id: "exam-desk-01",
     label: "Exam Station 1",
     type: "exam",
-    x: 1850,  // X Coordinate for Exam Hall
-    y: 550,  // Y Coordinate for Exam Hall
+    x: 1850,
+    y: 550,
     color: "bg-blue-500",
     icon: Monitor
   },
@@ -99,11 +38,33 @@ export const STATIONS: GameStation[] = [
     id: "cafeteria-table",
     label: "Chill Zone",
     type: "common",
-    x: 550, // X Coordinate for Cafeteria
-    y: 535, // Y Coordinate for Cafeteria
+    x: 550,
+    y: 535,
     color: "bg-green-500",
     icon: Coffee
+  },
+  {
+    id: "npc-professor",
+    label: "Prof. Byte",
+    type: "npc-teacher",
+    x: 2100, 
+    y: 1350, 
+    color: "bg-yellow-500",
+    icon: GraduationCap,
+    description: "Ask for guidance.",
+    status: "available" 
   }
 ];
 
-export const WALLS = []; // Add collision coordinates here later if needed
+export const WALLS = [];
+
+// ✅ TEACHER RBAC CONFIG
+export const TEACHER_IDS = [
+  "bristolrabbit720@gmail.com", 
+    
+];
+
+export const isTeacher = (email?: string | null) => {
+  if (!email) return false;
+  return TEACHER_IDS.includes(email);
+};
