@@ -26,17 +26,18 @@ export default function MiniMap({ playerPos }: MiniMapProps) {
 
       {/* 2. RENDER STATIC STATIONS (The dots) */}
       {STATIONS.map((station) => (
-        <div
-          key={station.id}
-          className={`absolute w-1.5 h-1.5 rounded-full ${station.color.replace('bg-', 'bg-')}`} 
-          // Note: We reuse your Tailwind color classes, or just force specific colors:
-          style={{
-            left: station.x * scale,
-            top: station.y * scale,
-            backgroundColor: station.color.includes('red') ? '#ef4444' : 
-                             station.color.includes('blue') ? '#3b82f6' : '#22c55e'
-          }}
-        />
+       <div
+  key={station.id}
+  className="absolute w-1.5 h-1.5 rounded-full"
+  style={{
+    left: station.x * scale,
+    top: station.y * scale,
+    // Fix: Fallback to gray string if color is missing
+    backgroundColor: (station.color || "").includes('red') ? '#ef4444' : 
+                     (station.color || "").includes('blue') ? '#3b82f6' : 
+                     (station.color || "").includes('yellow') ? '#eab308' : '#22c55e'
+  }}
+/>
       ))}
 
       {/* 3. RENDER THE PLAYER (Blinking Dot) */}
