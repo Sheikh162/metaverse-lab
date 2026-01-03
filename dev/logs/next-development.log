@@ -1,0 +1,6 @@
+[00:00:05.820] Server  LOG     ✓ Ready in 4s
+[00:00:13.007] Server  LOG     ○ Compiling / ...
+[00:00:21.477] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:22.119] Browser ERROR   {"code":"installations/request-failed","customData":{"requestName":"Create Installation","serverCode":403,"serverMessage":"The caller does not have permission","serverStatus":"PERMISSION_DENIED"},"name":"FirebaseError"}
+[00:00:56.834] Browser WARN    Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+[00:00:56.834] Browser WARN    Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
