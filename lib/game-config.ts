@@ -61,7 +61,6 @@ export const WALLS = [];
 // ✅ TEACHER RBAC CONFIG
 export const TEACHER_IDS = [
   "bristolrabbit720@gmail.com", 
-    
 ];
 
 export const isTeacher = (email?: string | null) => {
