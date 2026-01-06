@@ -3,7 +3,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 // --- 1. TOKEN FETCHER ---
 const getOAuthToken = (): string | null => {
   // We retrieve the Google OAuth token we saved during login
-  return localStorage.getItem("google_access_token");
+  return sessionStorage.getItem("google_access_token");
 };
 
 // --- 2. HEADERS HELPER ---

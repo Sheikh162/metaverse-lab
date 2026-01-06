@@ -25,7 +25,8 @@ export const STATIONS: GameStation[] = [
   // ... your existing stations ...
   { 
     id: "dev-station-1", 
-    x: 400, y: 500, 
+    x: 1850,  // X Coordinate for Exam Hall
+    y: 550,
     label: "Dev Terminal A", 
     icon: Monitor, 
     type: "dev", 
@@ -33,13 +34,13 @@ export const STATIONS: GameStation[] = [
   },
   { 
     id: "common-area", 
-    x: 1200, y: 1200, 
+    x: 550, // X Coordinate for Cafeteria
+    y: 535, 
     label: "Student Lounge", 
     icon: Coffee, 
     type: "common", 
     color: "bg-green-600" 
   },
-  // ✅ NEW: The Professor NPC
   {
     id: "npc-professor",
     x: 2100,

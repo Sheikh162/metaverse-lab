@@ -8,7 +8,7 @@ import {
   signOut,
   GoogleAuthProvider 
 } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { auth } from "@/lib/firebase"; // Removed googleProvider import to use a fresh instance
 
 type AuthContextType = {
   user: User | null;
@@ -35,28 +35,42 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   const signInWithGoogle = async () => {
     try {
-      // 1. CLASSROOM: Allows creating courses and assignments
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.courses');
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.coursework.students');
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.announcements');
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.rosters');
+      // 🟢 1. Create a FRESH provider instance (Like your old code)
+      // This ensures we don't have stale scopes from a previous session
+      const provider = new GoogleAuthProvider();
 
-      // 2. CALENDAR: Allows creating events (booking lab sessions)
-      googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
+      // 🟢 2. Add ALL Required Scopes
+      // CLASSROOM
+      provider.addScope('https://www.googleapis.com/auth/classroom.courses');
+      provider.addScope('https://www.googleapis.com/auth/classroom.coursework.students');
+      provider.addScope('https://www.googleapis.com/auth/classroom.announcements');
+      provider.addScope('https://www.googleapis.com/auth/classroom.rosters');
 
-      // 3. SHEETS: Allows creating/editing spreadsheets
-      googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+      // CALENDAR
+      provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
-      // 4. Drive: Allows saving in drive
-      googleProvider.addScope('https://www.googleapis.com/auth/drive.file');
+      // SHEETS
+      provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 
-      const result = await signInWithPopup(auth, googleProvider);
+      // DRIVE (Critical for your file uploads)
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+
+      // 🟢 3. FORCE the Consent Screen (CRITICAL FIX)
+      // This forces Google to show the "Allow NetVerse to access..." screen again.
+      // Without this, you get an old token that lacks the new permissions.
+      provider.setCustomParameters({
+        prompt: 'consent',
+      });
+
+      console.log("🔵 Starting Login with Enhanced Scopes...");
+      const result = await signInWithPopup(auth, provider);
       
-      // 3. Capture Token
+      // 4. Capture Token
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const token = credential?.accessToken;
       
       if (token) {
+        console.log("✅ Token received with new permissions");
         setAccessToken(token);
         sessionStorage.setItem("google_access_token", token);
       }
@@ -80,7 +94,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       
-      // Persist token across refresh
+      // Check for token in session storage on load
       const cachedToken = sessionStorage.getItem("google_access_token");
       if (cachedToken) setAccessToken(cachedToken);
       
