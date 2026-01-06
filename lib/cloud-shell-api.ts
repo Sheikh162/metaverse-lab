@@ -1,63 +1,76 @@
-// lib/cloud-shell-api.ts
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-// 🔴 TODO: Replace with your actual ngrok URL from your VM terminal
-const API_BASE_URL = "https://unthrown-clemently-isabella.ngrok-free.dev";
-
-const headers = {
-  "Content-Type": "application/json",
-  "ngrok-skip-browser-warning": "true",
+// --- 1. TOKEN FETCHER ---
+const getOAuthToken = (): string | null => {
+  // We retrieve the Google OAuth token we saved during login
+  return localStorage.getItem("google_access_token");
 };
 
-export interface CloudFile {
-  name: string;
-  size: number;
-  updatedAt: string;
-}
+// --- 2. HEADERS HELPER ---
+const getHeaders = () => {
+  const token = getOAuthToken();
+  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  
+  if (token) {
+    // Send the OAuth Access Token
+    headers["x-google-drive-token"] = token; 
+  }
+  
+  return headers;
+};
 
+// --- 3. API METHODS (Keep your existing methods, just ensure they use getHeaders) ---
 export const CloudAPI = {
-  // 1. Run Code
   execute: async (code: string, language: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/execute`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ code, language }),
-      });
-      return await res.json();
-    } catch (err) {
-      return { output: "⚠️ Network Error: Could not connect to Cloud Shell.", isError: true };
-    }
-  },
-
-  // 2. Save File
-  saveFile: async (email: string, filename: string, code: string) => {
-    const res = await fetch(`${API_BASE_URL}/save`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ email, filename, code }),
+    // ... same as before ...
+    const res = await fetch(`${API_BASE_URL}/execute`, {
+       method: "POST",
+       headers: getHeaders(), // <--- This now injects the correct token
+       body: JSON.stringify({ code, language }),
     });
     return await res.json();
   },
 
-  // 3. List Files
-  listFiles: async (email: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/files?email=${encodeURIComponent(email)}`, {
-        method: "GET",
-        headers,
-      });
-      return await res.json();
-    } catch (err) {
-      return { files: [] };
-    }
+  saveFile: async (filename: string, code: string) => {
+    // ... same as before ...
+    const res = await fetch(`${API_BASE_URL}/save`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ filename, code }),
+    });
+    return await res.json();
   },
 
-  // 4. Read File
-  readFile: async (email: string, filename: string) => {
+  listFiles: async () => {
+     // ... same as before ...
+     const res = await fetch(`${API_BASE_URL}/files`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      if (!res.ok) return { files: [] };
+      return await res.json();
+  },
+  
+  readFile: async (filename: string) => {
     const res = await fetch(
-      `${API_BASE_URL}/read?email=${encodeURIComponent(email)}&filename=${encodeURIComponent(filename)}`,
-      { method: "GET", headers }
+      `${API_BASE_URL}/read?filename=${encodeURIComponent(filename)}`,
+      { 
+        method: "GET", 
+        headers: getHeaders()
+      }
     );
+    return await res.json();
+  },
+
+  deleteFile: async (filename: string) => {
+    const res = await fetch(`${API_BASE_URL}/delete`, {
+      method: "DELETE",
+      headers: getHeaders(),
+      body: JSON.stringify({ filename }),
+    });
     return await res.json();
   }
 };

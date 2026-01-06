@@ -1,26 +1,13 @@
-"use client";
+import CTASection from "@/components/landing/CTASection";
+import FeatureSection from "@/components/landing/FeatureSection";
+import HeroSection from "@/components/landing/HeroSection";
 
-import { useState } from "react";
-import LobbyScreen from "@/components/landing/LobbyScreen";
-import NetVerseEngine from "@/components/game/NetVerseEngine";
-
-export default function Home() {
-  const [isGameActive, setIsGameActive] = useState(false);
-  const [userData, setUserData] = useState({ name: "Student", role: "student" });
-
-  const handleJoin = (name: string, role: string) => {
-    setUserData({ name, role });
-    setIsGameActive(true); // <--- Triggers the screen swap
-  };
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-black">
-      {!isGameActive ? (
-        <LobbyScreen onJoin={handleJoin} />
-      ) : (
-        // Pass the captured name to the engine
-        <NetVerseEngine username={userData.name} />
-      )}
+    <main className="min-h-screen bg-[var(--background)] selection:bg-violet-500/30 selection:text-white">
+      <HeroSection />
+      <FeatureSection />
+      <CTASection />
     </main>
   );
 }

@@ -4,16 +4,27 @@ import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { 
   Play, RotateCcw, Save, Loader2, Terminal, X, 
-  ChevronDown, Code2, FileText, RefreshCw, Bot 
+  Code2, FileText, RefreshCw, Bot, Cpu
 } from "lucide-react";
+
+// Shadcn Imports
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+
 import { toast } from "sonner";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { CloudFile, CloudAPI } from "@/lib/cloud-shell-api";
+import { CloudAPI } from "@/lib/cloud-shell-api";
 
 // --- LANGUAGE CONFIG ---
-// IDs match Monaco Editor language identifiers
 const LANGUAGES = [
   { id: "cpp", label: "C++ (GCC)", snippet: "#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello NetVerse\";\n\treturn 0;\n}" },
   { id: "python", label: "Python 3", snippet: "print('Hello NetVerse')" },
@@ -42,7 +53,7 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
 
   // File System State
   const [currentFilename, setCurrentFilename] = useState("main.cpp");
-  const [files, setFiles] = useState<CloudFile[]>([]);
+  const [files, setFiles] = useState<any[]>([]);
 
   // --- 1. INITIAL LOAD ---
   useEffect(() => {
@@ -54,18 +65,16 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
   const refreshFiles = async () => {
     if (!user?.email) return;
     setIsLoadingFiles(true);
-    const data = await CloudAPI.listFiles(user.email);
+    const data = await CloudAPI.listFiles();
     if (data.files) setFiles(data.files);
     setIsLoadingFiles(false);
   };
 
   // --- 2. ACTIONS ---
-
   const handleRun = async () => {
     setIsRunning(true);
     setOutput("📡 Sending to Cloud VM...");
     
-    // Call Cloud API
     const result = await CloudAPI.execute(code, activeLang.id);
     
     if (result.isError) {
@@ -87,7 +96,7 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     }
 
     const toastId = toast.loading("Saving to cloud...");
-    const res = await CloudAPI.saveFile(user.email, filename, code);
+    const res = await CloudAPI.saveFile(filename, code);
     
     toast.dismiss(toastId);
     if (res.success) {
@@ -103,7 +112,7 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     if (!user?.email) return;
     const toastId = toast.loading(`Loading ${filename}...`);
     
-    const data = await CloudAPI.readFile(user.email, filename);
+    const data = await CloudAPI.readFile(filename);
     
     toast.dismiss(toastId);
     if (data.content) {
@@ -111,7 +120,6 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
       setCurrentFilename(filename);
       setOutput(""); 
       
-      // Auto-detect language based on extension
       if (filename.endsWith(".py")) setActiveLang(LANGUAGES[1]);
       else if (filename.endsWith(".js")) setActiveLang(LANGUAGES[2]);
       else if (filename.endsWith(".go")) setActiveLang(LANGUAGES[3]);
@@ -128,19 +136,13 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     
     setIsAiLoading(true);
     try {
-      // Assuming you have a Next.js API route at /api/hint
       const res = await fetch("/api/hint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          code, 
-          error: output, 
-          language: activeLang.id 
-        }),
+        body: JSON.stringify({ code, error: output, language: activeLang.id }),
       });
       
       if (!res.ok) throw new Error("AI Service unavailable");
-      
       const data = await res.json();
       setOutput((prev) => prev + "\n\n🤖 AI LAB ASSISTANT:\n" + data.hint);
     } catch (err) {
@@ -150,78 +152,90 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     }
   };
 
+  // Helper to handle language change from Select component
+  const onLanguageChange = (val: string) => {
+    const selected = LANGUAGES.find(l => l.id === val) || LANGUAGES[0];
+    setActiveLang(selected);
+    setCode(selected.snippet);
+    setOutput("");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-      {/* FORCE FULL WIDTH/HEIGHT */}
-      <DialogContent className="!max-w-[95vw] !w-[95vw] h-[90vh] bg-[#1e1e1e] border-zinc-800 p-0 gap-0 flex flex-col overflow-hidden sm:rounded-xl shadow-2xl">
+      {/* FIX: [&>button]:hidden removes the default Shadcn close X button. 
+        We use our own in the header.
+      */}
+      <DialogContent className="!max-w-[95vw] !w-[95vw] h-[90vh] bg-[#1e1e1e] border-zinc-800 p-0 gap-0 flex flex-col overflow-hidden sm:rounded-xl shadow-2xl [&>button]:hidden">
         
         {/* --- HEADER --- */}
-        <div className="h-16 bg-[#252526] border-b border-black/40 flex items-center justify-between px-4 shrink-0 select-none">
-          {/* Left: Title & File Name */}
-          <div className="flex items-center gap-4">
+        <div className="h-14 bg-zinc-900 border-b border-border flex items-center justify-between px-4 shrink-0 select-none">
+          
+          {/* Left: Title & Language */}
+          <div className="flex items-center gap-6">
              <div className="flex flex-col">
-               {/* DialogTitle for Shadcn Accessibility */}
-               <DialogTitle className="text-white font-bold text-sm flex items-center gap-2">
-                 <Code2 className="w-4 h-4 text-blue-400"/>
+               <DialogTitle className="text-foreground font-bold font-mono text-sm flex items-center gap-2">
+                 <Cpu className="w-4 h-4 text-primary"/>
                  {station?.label || "IDE Environment"}
                </DialogTitle>
-               
-               <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1 mt-0.5">
-                 {currentFilename} {files.find(f => f.name === currentFilename) ? "(Saved)" : "(Unsaved)"}
+               <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                 {currentFilename} 
+                 {files.find(f => f.name === currentFilename) ? (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 border-green-900 text-green-500">SAVED</Badge>
+                 ) : (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 border-orange-900 text-orange-500">UNSAVED</Badge>
+                 )}
                </span>
              </div>
 
-             {/* Language Select */}
-             <div className="relative ml-4 group">
-               <select 
-                  value={activeLang.id}
-                  onChange={(e) => {
-                    const selected = LANGUAGES.find(l => l.id === e.target.value) || LANGUAGES[0];
-                    setActiveLang(selected);
-                    setCode(selected.snippet); // Update Code
-                    setOutput("");             // Clear Output
-                  }}
-                  className="appearance-none bg-zinc-900 border border-zinc-700 text-zinc-300 text-xs rounded-md pl-3 pr-8 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer hover:border-zinc-500 transition-colors"
-               >
-                 {LANGUAGES.map(lang => (
-                   <option key={lang.id} value={lang.id}>{lang.label}</option>
-                 ))}
-               </select>
-               <ChevronDown className="absolute right-2 top-2 w-3 h-3 text-zinc-500 pointer-events-none"/>
+             {/* Shadcn Select Component */}
+             <div className="hidden sm:block">
+                <Select value={activeLang.id} onValueChange={onLanguageChange}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs font-mono bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-primary">
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    {LANGUAGES.map(lang => (
+                      <SelectItem key={lang.id} value={lang.id} className="text-zinc-300 focus:bg-zinc-700 focus:text-white cursor-pointer font-mono text-xs">
+                        {lang.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
              </div>
           </div>
 
-          {/* Right: Buttons */}
+          {/* Right: Actions */}
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setCode(activeLang.snippet)} className="text-zinc-400 hover:text-white hidden sm:flex">
-              <RotateCcw className="w-4 h-4 mr-2"/> Reset
+            <Button size="sm" variant="ghost" onClick={() => setCode(activeLang.snippet)} className="text-zinc-400 hover:text-white hidden sm:flex h-8 font-mono text-xs">
+              <RotateCcw className="w-3.5 h-3.5 mr-2"/> Reset
             </Button>
             
             {/* AI BUTTON */}
             <Button 
               size="sm" 
-              variant="secondary"
+              variant="outline"
               onClick={handleAskAI} 
               disabled={isAiLoading || !output}
-              className="bg-purple-900/20 text-purple-300 hover:bg-purple-900/40 border border-purple-500/30"
+              className="h-8 border-purple-500/30 text-purple-400 hover:bg-purple-900/20 hover:text-purple-300 font-mono text-xs"
             >
-              {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Bot className="w-4 h-4 sm:mr-2"/>}
+              {isAiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Bot className="w-3.5 h-3.5 sm:mr-2"/>}
               <span className="hidden sm:inline">AI Hint</span>
             </Button>
 
             {/* SAVE BUTTON */}
-            <Button size="sm" variant="secondary" onClick={handleSave} className="bg-blue-900/20 text-blue-300 hover:bg-blue-900/40 border border-blue-500/30">
-              <Save className="w-4 h-4 mr-2"/> Save
+            <Button size="sm" variant="secondary" onClick={handleSave} className="h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-mono text-xs">
+              <Save className="w-3.5 h-3.5 mr-2"/> Save
             </Button>
 
             {/* RUN BUTTON */}
-            <Button size="sm" onClick={handleRun} disabled={isRunning} className="bg-green-600 hover:bg-green-500 text-white min-w-[100px] shadow-lg shadow-green-900/20">
-              {isRunning ? <Loader2 className="w-4 h-4 animate-spin"/> : <Play className="w-4 h-4 mr-2 fill-current"/>}
-              Run
+            <Button size="sm" onClick={handleRun} disabled={isRunning} className="h-8 bg-green-600 hover:bg-green-500 text-white shadow-[0_0_10px_rgba(22,163,74,0.4)] font-mono text-xs font-bold min-w-[80px]">
+              {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Play className="w-3.5 h-3.5 mr-2 fill-current"/>}
+              RUN
             </Button>
             
-            <div className="w-px h-6 bg-zinc-700 mx-2"/>
-            <Button size="icon" variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white rounded-full w-8 h-8 hover:bg-red-500/20 hover:text-red-400">
+            <div className="w-px h-5 bg-zinc-700 mx-1"/>
+            
+            <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-full">
               <X className="w-5 h-5"/>
             </Button>
           </div>
@@ -231,32 +245,36 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
         <div className="flex-1 flex overflow-hidden">
           
           {/* LEFT: FILE EXPLORER SIDEBAR */}
-          <div className="w-56 bg-[#181818] border-r border-black/40 flex flex-col shrink-0">
-            <div className="h-8 flex items-center justify-between px-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider bg-[#1f1f1f]">
+          <div className="w-48 bg-zinc-950 border-r border-border flex flex-col shrink-0">
+            <div className="h-8 flex items-center justify-between px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-zinc-900 border-b border-zinc-800 font-mono">
               <span>Cloud Files</span>
-              <RefreshCw className={`w-3 h-3 cursor-pointer hover:text-white ${isLoadingFiles ? 'animate-spin' : ''}`} onClick={refreshFiles}/>
+              <RefreshCw className={`w-3 h-3 cursor-pointer hover:text-primary transition-colors ${isLoadingFiles ? 'animate-spin' : ''}`} onClick={refreshFiles}/>
             </div>
             
-            <div className="flex-1 overflow-auto p-2 space-y-1">
-               {isLoadingFiles ? (
-                 <div className="text-zinc-600 text-xs p-2 text-center">Syncing...</div>
-               ) : files.length === 0 ? (
-                 <div className="text-zinc-600 text-xs p-2 text-center italic">No files found</div>
-               ) : (
-                 files.map((file) => (
-                   <div 
-                     key={file.name} 
-                     onClick={() => loadFile(file.name)}
-                     className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer select-none transition-colors ${
-                       currentFilename === file.name ? "bg-blue-600/20 text-blue-400" : "text-zinc-400 hover:bg-[#2a2a2a] hover:text-zinc-200"
-                     }`}
-                   >
-                     <FileText className="w-3.5 h-3.5 opacity-70"/>
-                     <span className="truncate">{file.name}</span>
-                   </div>
-                 ))
-               )}
-            </div>
+            <ScrollArea className="flex-1">
+               <div className="p-2 space-y-1">
+                 {isLoadingFiles ? (
+                   <div className="text-zinc-600 text-[10px] p-2 text-center font-mono">Syncing...</div>
+                 ) : files.length === 0 ? (
+                   <div className="text-zinc-600 text-[10px] p-2 text-center italic font-mono">No files</div>
+                 ) : (
+                   files.map((file) => (
+                     <button 
+                       key={file.name} 
+                       onClick={() => loadFile(file.name)}
+                       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono text-left transition-colors ${
+                         currentFilename === file.name 
+                          ? "bg-primary/10 text-primary" 
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                       }`}
+                     >
+                       <FileText className="w-3.5 h-3.5 opacity-70"/>
+                       <span className="truncate">{file.name}</span>
+                     </button>
+                   ))
+                 )}
+               </div>
+            </ScrollArea>
           </div>
 
           {/* RIGHT: EDITOR + TERMINAL */}
@@ -276,30 +294,33 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
                    lineNumbers: "on",
                    scrollBeyondLastLine: false,
                    automaticLayout: true,
-                   padding: { top: 16 }
+                   padding: { top: 16 },
+                   fontFamily: "'Space Mono', monospace" // Enforcing the retro font
                  }}
                />
             </div>
 
             {/* BOTTOM: TERMINAL */}
-            <div className="h-48 bg-[#0d0d0d] border-t border-zinc-800 flex flex-col shrink-0">
-              <div className="h-8 bg-[#1e1e1e] border-b border-black flex items-center px-4 justify-between select-none">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                  <Terminal className="w-3 h-3"/> Console Output
+            <div className="h-48 bg-black border-t border-zinc-800 flex flex-col shrink-0">
+              <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 justify-between select-none">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
+                  <Terminal className="w-3 h-3 text-primary"/> Console Output
                 </span>
-                <button onClick={() => setOutput("")} className="text-[10px] text-zinc-500 hover:text-zinc-300 underline">Clear</button>
+                <button onClick={() => setOutput("")} className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono hover:underline">Clear Log</button>
               </div>
               
-              <div className="flex-1 p-4 overflow-auto font-mono text-sm">
-                {output ? (
-                  <pre className="text-zinc-300 whitespace-pre-wrap font-[inherit]">{output}</pre>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-zinc-800 space-y-2 select-none">
-                    <Play className="w-8 h-8 opacity-20"/>
-                    <span className="text-xs">Run code to see output</span>
-                  </div>
-                )}
-              </div>
+              <ScrollArea className="flex-1 font-mono text-sm">
+                <div className="p-4">
+                  {output ? (
+                    <pre className="text-zinc-300 whitespace-pre-wrap font-[inherit]">{output}</pre>
+                  ) : (
+                    <div className="h-32 flex flex-col items-center justify-center text-zinc-800 space-y-2 select-none">
+                      <Play className="w-8 h-8 opacity-20"/>
+                      <span className="text-xs font-mono">Run code to see output</span>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
 
           </div>

@@ -1,109 +1,62 @@
-// import { LucideIcon, Monitor, Coffee, Server, ShieldAlert, Cpu } from "lucide-react";
-
-// export const GAME_CONFIG = {
-//   mapWidth: 2400,
-//   mapHeight: 1600,
-//   viewportWidth: 900,
-//   viewportHeight: 600,
-//   playerSize: 40,
-//   playerSpeed: 12,
-// };
-
-// // --- STATIONS ---
-// export interface GameStation {
-//   id: string;
-//   label: string;
-//   type: "exam" | "server" | "common" | "security" | "dev";
-//   x: number;
-//   y: number;
-//   color: string;
-//   icon: LucideIcon;
-//   description?: string;
-// }
-
-// export const STATIONS: GameStation[] = [
-//   {
-//     id: "exam-desk-01",
-//     label: "Exam Desk A1",
-//     type: "exam",
-//     x: 600,
-//     y: 550,
-//     color: "bg-blue-500",
-//     icon: Monitor
-//   },
-//   {
-//     id: "mainframe-core",
-//     label: "Mainframe",
-//     type: "server",
-//     x: 2050,
-//     y: 400,
-//     color: "bg-red-600",
-//     icon: Server
-//   },
-//   {
-//     id: "security-hub",
-//     label: "Proctor Hub",
-//     type: "security",
-//     x: 200,
-//     y: 200,
-//     color: "bg-slate-700",
-//     icon: ShieldAlert
-//   },
-//   {
-//     id: "cafeteria-table",
-//     label: "Cafeteria",
-//     type: "common",
-//     x: 1300,
-//     y: 900,
-//     color: "bg-green-500",
-//     icon: Coffee
-//   }
-// ];
-
-// export const WALLS = []; // Empty for CSS version usually
-
-import { LucideIcon, Monitor, Coffee, Server, ShieldAlert } from "lucide-react";
+import { LucideIcon, Monitor, BookOpen, Coffee, Shield, Server, User } from "lucide-react";
 
 export const GAME_CONFIG = {
   mapWidth: 2400,
   mapHeight: 1600,
-  viewportWidth: 900,
+  viewportWidth: 800,
   viewportHeight: 600,
-  playerSize: 40,
-  playerSpeed: 12,
+  playerSize: 48,
+  playerSpeed: 8,
 };
 
-// --- STATIONS ---
 export interface GameStation {
   id: string;
-  label: string;
-  type: "exam" | "server" | "common" | "security" | "dev";
   x: number;
   y: number;
-  color: string;
+  label: string;
   icon: LucideIcon;
+  type: 'exam' | 'common' | 'security' | 'server' | 'dev' | 'npc-teacher';
+  color: string;
   description?: string;
+  interactionRadius?: number; // Optional custom radius
 }
 
 export const STATIONS: GameStation[] = [
-  {
-    id: "exam-desk-01",
-    label: "Exam Station 1",
-    type: "exam",
-    x: 1850,  // X Coordinate for Exam Hall
-    y: 550,  // Y Coordinate for Exam Hall
-    color: "bg-blue-500",
-    icon: Monitor
+  // ... your existing stations ...
+  { 
+    id: "dev-station-1", 
+    x: 400, y: 500, 
+    label: "Dev Terminal A", 
+    icon: Monitor, 
+    type: "dev", 
+    color: "bg-blue-600" 
   },
+  { 
+    id: "common-area", 
+    x: 1200, y: 1200, 
+    label: "Student Lounge", 
+    icon: Coffee, 
+    type: "common", 
+    color: "bg-green-600" 
+  },
+  // ✅ NEW: The Professor NPC
   {
-    id: "cafeteria-table",
-    label: "Chill Zone",
-    type: "common",
-    x: 550, // X Coordinate for Cafeteria
-    y: 535, // Y Coordinate for Cafeteria
-    color: "bg-green-500",
-    icon: Coffee
+    id: "npc-professor",
+    x: 2100,
+    y: 1350,
+    label: "Prof. Oak",
+    icon: User,
+    type: "npc-teacher",
+    color: "bg-yellow-600",
+    interactionRadius: 100
   }
 ];
 
-export const WALLS = []; // Add collision coordinates here later if needed
+// ✅ RBAC HELPER
+// Replace with your actual admin email(s)
+const ADMIN_EMAILS = ["bristolrabbit720@gmail.com"];
+
+export const isTeacher = (email?: string | null) => {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email);
+};

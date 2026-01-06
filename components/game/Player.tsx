@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { GAME_CONFIG } from "@/lib/game-config";
+import { Badge } from "@/components/ui/badge";
 
 interface PlayerProps {
   pos: { x: number; y: number };
@@ -11,39 +11,36 @@ interface PlayerProps {
 
 export default function Player({ pos, facing, isMoving, username }: PlayerProps) {
   
-  // 1. Map directions to your specific files
   const spriteMap = {
     left: "/characters/student-left-removebg.png",
     right: "/characters/student-right-removebg.png",
-    up: "/characters/student-up-removebg.png",     // Fallback to right if you lack this
-    down: "/characters/student-down-removebg.png", // Fallback to left if you lack this
+    up: "/characters/student-up-removebg.png",     
+    down: "/characters/student-down-removebg.png", 
   };
 
   return (
     <motion.div
-className="absolute flex flex-col items-center justify-center z-20 w-16 h-16 -ml-4 -mt-8"      animate={{ x: pos.x, y: pos.y }}
+      className="absolute flex flex-col items-center justify-center z-20 w-16 h-16 -ml-4 -mt-8"
+      animate={{ x: pos.x, y: pos.y }}
       transition={{ 
         type: "tween", 
         ease: "linear", 
-        duration: isMoving ? 0.1 : 0 // Smooth interpolation when moving
+        duration: isMoving ? 0.1 : 0 
       }}
-      style={{
-        zIndex: 20,
-        // width: GAME_CONFIG.playerSize,   // e.g., 32px
-        // height: GAME_CONFIG.playerSize,  // e.g., 32px
-      }}
+      style={{ zIndex: 20 }}
     >
       {/* 2. The Character Sprite */}
       <img 
         src={spriteMap[facing]} 
         alt="Player"
-        className="w-16 h-16 object-contain pixelated" 
-        // 'pixelated' ensures crisp edges for pixel art (add to global css if needed)
+        className="w-16 h-16 object-contain pixelated drop-shadow-lg" 
       />
 
-      {/* 3. Username Label (Floating above head) */}
-      <div className="absolute -top-6 bg-black/50 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap backdrop-blur-sm">
-        {username}
+      {/* 3. Username Label (Styled Badge) */}
+      <div className="absolute -top-8">
+        <Badge variant="secondary" className="px-2 py-0 text-[10px] h-5 font-mono bg-black/60 text-white backdrop-blur-sm border-white/10 shadow-sm pointer-events-none">
+          {username}
+        </Badge>
       </div>
 
     </motion.div>

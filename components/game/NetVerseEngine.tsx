@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { GAME_CONFIG, STATIONS, GameStation } from "@/lib/game-config"; 
+import { GAME_CONFIG, STATIONS, GameStation, isTeacher } from "@/lib/game-config"; 
 
 // --- COMPONENTS ---
 import Player from "./Player";
@@ -10,30 +10,46 @@ import Station from "./Station";
 import WorldMap from "./WorldMap";
 import StationModalManager from "./StationModalManager";
 import MiniMap from "@/components/hud/MiniMap";
-// Import the Chat Modal we created earlier
 import ChatModal from "./ChatModal"; 
+import Teacher from "./Teacher"; // From Friend's Code
+import TeacherDashboard from "@/components/hud/TeacherDashboard"; // From Friend's Code
+import DashboardOverlay from "@/components/hud/DashboardOverlay"; // From Friend's Code
+
+// --- HOOKS ---
 import { RemotePlayer, useMultiplayer } from "@/hooks/useMultiplayer";
 import { useAuth } from "../providers/AuthProvider";
 
+// --- SHADCN & UI IMPORTS ---
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Gamepad2, Wifi, MapPin, LayoutDashboard, Loader2 } from "lucide-react";
+
+// --- FIREBASE IMPORTS ---
+import { ref, set, onDisconnect } from "firebase/database";
+import { db } from "@/lib/firebase";
+
 export default function NetVerseEngine({ username }: { username: string }) {
   
-  // Helper to create unique room IDs for private chats
   const getChatId = (uid1: string, uid2: string) => {
     return [uid1, uid2].sort().join("_"); 
   };
 
-  const { user } = useAuth();
+  // 1. Get Auth Data (User + Token from Friend's Logic)
+  const { user, loading, accessToken } = useAuth(); 
   
-  // --- 1. STATE ---
-const [pos, setPos] = useState({ 
-  x: 1200,   // Middle of the map width
-  y: 1500    // Bottom of the map (Spawn Circle)
-});  const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
+  // RBAC Check
+  const amITeacher = isTeacher(user?.email);
+
+  // --- STATE ---
+  const [pos, setPos] = useState({ x: 1200, y: 1500 });
+  const [facing, setFacing] = useState<'left' | 'right' | 'up' | 'down'>('down');
   const [isMoving, setIsMoving] = useState(false);
   
   // Interaction State
   const [activeStation, setActiveStation] = useState<GameStation | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false); // Friend's Feature
 
   // Chat State
   const [closestPlayer, setClosestPlayer] = useState<RemotePlayer | null>(null);
@@ -41,83 +57,77 @@ const [pos, setPos] = useState({
   const [currentChatId, setCurrentChatId] = useState<string>("");
 
   // Multiplayer Hook
-  const { otherPlayers } = useMultiplayer(
-    "campus-lobby", 
-    pos,            
-    facing,         
-    isMoving        
-  );
+  const { otherPlayers } = useMultiplayer("campus-lobby", pos, facing, isMoving);
 
-  // --- 2. GAME LOOP ---
+  // --- TEACHER IDENTITY LOCK (Friend's Logic) ---
+  // useEffect(() => {
+  //   if (!loading && amITeacher && user) {
+  //       // Force Position to Desk
+  //       //setPos({ x: 2100, y: 1350 }); 
+  //       //setFacing("down");
+
+  //       // Broadcast Online Status
+  //       const statusRef = ref(db, "game_state/professor_status");
+  //       set(statusRef, "online");
+  //       onDisconnect(statusRef).set("offline");
+  //   }
+  // }, [loading, amITeacher, user]);
+
+  // --- GAME LOOP ---
   useEffect(() => {
+    if (loading) return;
+
     let animationFrameId: number;
     const keysPressed = new Set<string>();
 
     const handleKeyDown = (e: KeyboardEvent) => keysPressed.add(e.key);
     const handleKeyUp = (e: KeyboardEvent) => keysPressed.delete(e.key);
-    
-    // FIX 1: Stop moving if user switches tabs (The "Running Away" Fix)
-    const handleBlur = () => {
-      keysPressed.clear();
-      setIsMoving(false);
-    };
+    const handleBlur = () => { keysPressed.clear(); setIsMoving(false); };
 
-const gameLoop = () => {
-      if (isDialogOpen) return; 
+    const gameLoop = () => {
+      if (isDialogOpen || isChatOpen || isDashboardOpen) {
+          setIsMoving(false); 
+          animationFrameId = requestAnimationFrame(gameLoop);
+          return;
+      }
 
-      const moving = keysPressed.size > 0;
-      setIsMoving(moving);
+          const moving = keysPressed.size > 0;
+          setIsMoving(moving);
 
-      // (Movement Logic stays the same...)
-      setPos((prev) => {
-        let { x, y } = prev;
-        const speed = GAME_CONFIG.playerSpeed;
-        if (keysPressed.has("ArrowUp") || keysPressed.has("w")) { y -= speed; setFacing('up'); }
-        if (keysPressed.has("ArrowDown") || keysPressed.has("s")) { y += speed; setFacing('down'); }
-        if (keysPressed.has("ArrowLeft") || keysPressed.has("a")) { x -= speed; setFacing("left"); }
-        if (keysPressed.has("ArrowRight") || keysPressed.has("d")) { x += speed; setFacing("right"); }
-        return {
-          x: Math.max(GAME_CONFIG.playerSize, Math.min(x, GAME_CONFIG.mapWidth - GAME_CONFIG.playerSize)),
-          y: Math.max(GAME_CONFIG.playerSize, Math.min(y, GAME_CONFIG.mapHeight - GAME_CONFIG.playerSize)),
-        };
-      });
-
-      // --- FIX STARTS HERE ---
+          setPos((prev) => {
+            let { x, y } = prev;
+            const speed = GAME_CONFIG.playerSpeed;
+            if (keysPressed.has("ArrowUp") || keysPressed.has("w")) { y -= speed; setFacing('up'); }
+            if (keysPressed.has("ArrowDown") || keysPressed.has("s")) { y += speed; setFacing('down'); }
+            if (keysPressed.has("ArrowLeft") || keysPressed.has("a")) { x -= speed; setFacing("left"); }
+            if (keysPressed.has("ArrowRight") || keysPressed.has("d")) { x += speed; setFacing("right"); }
+            return {
+              x: Math.max(GAME_CONFIG.playerSize, Math.min(x, GAME_CONFIG.mapWidth - GAME_CONFIG.playerSize)),
+              y: Math.max(GAME_CONFIG.playerSize, Math.min(y, GAME_CONFIG.mapHeight - GAME_CONFIG.playerSize)),
+            };
+          });
       
-      // 1. Explicitly type the variable
-      let closest: RemotePlayer | null = null;
-      let minDist = 100; // 100px Radius
 
-      // 2. Use 'for...of' instead of '.forEach' so TypeScript understands it
+      // Proximity Checks
+      let closest: RemotePlayer | null = null;
+      let minDist = 100; 
       for (const p of otherPlayers) {
         const dist = Math.hypot(p.x - pos.x, p.y - pos.y);
-        
-        // Debug Log: Uncomment to see if distances are valid
-        // console.log(p.username, Math.round(dist)); 
-
-        if (dist < minDist) {
-          minDist = dist;
-          closest = p;
-        }
+        if (dist < minDist) { minDist = dist; closest = p; }
       }
-      
       setClosestPlayer(closest);
 
-      // 3. Chat Trigger Check
-      // Now TS knows 'closest' can be a RemotePlayer, so closest.id is valid
       if (keysPressed.has("e") && closest && !isChatOpen && user) {
-        const chatId = getChatId(user.uid, closest.id); // <--- No more error
-        setCurrentChatId(chatId);
+        setCurrentChatId(getChatId(user.uid, closest.id));
         setIsChatOpen(true);
         keysPressed.delete("e"); 
       }
-      // --- FIX ENDS HERE ---
 
-      // (Station Logic stays the same...)
       const nearby = STATIONS.find((s) => {
         const dx = Math.abs(pos.x - s.x);
         const dy = Math.abs(pos.y - s.y);
-        return dx < 80 && dy < 80; 
+        const radius = s.interactionRadius || 80;
+        return dx < radius && dy < radius; 
       });
       setActiveStation(nearby || null);
 
@@ -131,44 +141,101 @@ const gameLoop = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleBlur); // Add Blur Listener
+    window.addEventListener("blur", handleBlur);
     animationFrameId = requestAnimationFrame(gameLoop);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleBlur); // Remove Blur Listener
+      window.removeEventListener("blur", handleBlur);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [pos, isDialogOpen, isChatOpen, otherPlayers, user]); 
+  }, [pos, isDialogOpen, isChatOpen, isDashboardOpen, otherPlayers, user, amITeacher, loading]); 
+
+  // --- LOADING SCREEN ---
+  if (loading) {
+    return (
+      <div className="h-screen w-screen bg-background flex flex-col items-center justify-center text-foreground gap-4">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-muted-foreground font-mono text-sm animate-pulse">Authenticating Identity...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-black overflow-hidden relative">
+    <div className="flex items-center justify-center min-h-screen bg-background overflow-hidden relative font-sans selection:bg-primary/30">
       
-      {/* HUD Layer */}
-      <div className="absolute top-4 left-4 z-50">
-        <h1 className="text-white font-bold text-xl tracking-widest">NETVERSE <span className="text-blue-500">LABS</span></h1>
-        <div className="flex items-center gap-2 text-slate-400 text-xs mt-1">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
-          Logged in as {username} • {Math.round(pos.x)}, {Math.round(pos.y)}
-        </div>
+      {/* 1. HUD Layer (Your Retro Style) */}
+      <div className="absolute top-6 left-6 z-50 pointer-events-none">
+        <Card className="bg-card/90 backdrop-blur-sm border-border shadow-lg">
+          <CardContent className="p-4 flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/20 rounded-md">
+                <Gamepad2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-foreground font-bold font-mono tracking-tight leading-none">
+                  NETVERSE <span className="text-primary">OS</span>
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                   <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                      Online • {username} {amITeacher && <span className="text-yellow-500 font-bold">(ADMIN)</span>}
+                    </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-px w-full bg-border" />
+            
+            <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+               <span className="flex items-center gap-1"><MapPin className="w-3 h-3"/> {Math.round(pos.x)}, {Math.round(pos.y)}</span>
+               <span className="flex items-center gap-1"><Wifi className="w-3 h-3"/> 24ms</span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* FIX 3: HUD Message for "Press E" (This was missing!) */}
-      {closestPlayer && !isChatOpen && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-black/80 text-white px-4 py-2 rounded-full border border-white/20 shadow-[0_0_15px_rgba(59,130,246,0.5)] flex items-center gap-2">
-            <span className="bg-white text-black w-5 h-5 flex items-center justify-center rounded text-xs font-bold">E</span>
-            <span className="text-sm font-medium">Chat with {closestPlayer.username}</span>
-          </div>
+      {/* 2. Dashboard Button (Friend's Feature, Your Style) */}
+      <div className="absolute top-6 right-6 z-50">
+        <Button 
+          onClick={() => setIsDashboardOpen(true)}
+          className="bg-card/90 border border-border hover:bg-primary hover:text-primary-foreground backdrop-blur-md shadow-lg gap-2 transition-all font-mono text-xs h-10"
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          <span className="hidden sm:inline">DASHBOARD</span>
+        </Button>
+      </div>
+
+      {/* 3. Interaction Prompts */}
+      {closestPlayer && !isChatOpen && !isDashboardOpen && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+          <Badge variant="secondary" className="px-4 py-2 border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.5)] flex items-center gap-3 text-sm bg-background/90 backdrop-blur-md">
+            <span className="bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center rounded font-mono text-xs font-bold border border-white/20">E</span>
+            <span className="font-mono text-foreground">Chat with {closestPlayer.username}</span>
+          </Badge>
+        </div>
+      )}
+
+      {activeStation && !isDialogOpen && !isDashboardOpen && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+           <Badge className="px-6 py-2 bg-foreground text-background font-bold border-2 border-primary shadow-[0_0_20px_rgba(var(--primary),0.6)] flex items-center gap-3 text-sm">
+             <span className="bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center rounded font-mono text-xs font-bold">↵</span>
+             <span className="font-mono">
+               {activeStation.type === 'npc-teacher' ? "Talk to Professor" : `Access ${activeStation.label}`}
+             </span>
+           </Badge>
         </div>
       )}
 
       <MiniMap playerPos={pos} />
 
-      {/* Camera Viewport */}
+      {/* 4. Game Viewport */}
       <div 
-        className="relative overflow-hidden bg-slate-900 border-4 border-slate-800 rounded-xl shadow-2xl"
+        className="relative overflow-hidden bg-black border-4 border-border rounded-xl shadow-2xl ring-1 ring-white/10"
         style={{ width: GAME_CONFIG.viewportWidth, height: GAME_CONFIG.viewportHeight }}
       >
         <motion.div
@@ -182,7 +249,7 @@ const gameLoop = () => {
         >
           <WorldMap />
 
-          {/* Render Other Players */}
+          {/* Other Players */}
           {otherPlayers.map((p) => (
             <Player 
               key={p.id}
@@ -193,29 +260,31 @@ const gameLoop = () => {
             />
           ))}
 
-          {/* Render Stations */}
-          {STATIONS.map((station) => (
-            <Station 
-              key={station.id} 
-              station={station} 
-              isActive={activeStation?.id === station.id} 
-            />
+          {/* Stations (Exclude NPC Teacher) */}
+          {STATIONS.filter(s => s.type !== "npc-teacher").map((station) => (
+            <Station key={station.id} station={station} isActive={activeStation?.id === station.id} />
           ))}
 
-          {/* Render My Player */}
+          {/* Friend's Logic: Render Teacher NPC only if I am not the teacher */}
+          {!amITeacher && STATIONS.filter(s => s.type === "npc-teacher").map(npc => (
+            <Teacher key={npc.id} x={npc.x} y={npc.y} label={npc.label} status="online" />
+          ))}
+
+          {/* My Player */}
           <Player pos={pos} facing={facing} username={username} isMoving={false} />
 
         </motion.div>
+        
+        {/* Your Retro Scanlines */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" style={{ backgroundSize: "100% 2px, 3px 100%" }} />
       </div>
 
-      {/* Station Modal */}
       <StationModalManager 
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         activeStation={activeStation}
       />
 
-      {/* FIX 4: Render the Chat Modal (This was also missing!) */}
       {user && closestPlayer && (
         <ChatModal 
           isOpen={isChatOpen}
@@ -225,6 +294,18 @@ const gameLoop = () => {
           partnerName={closestPlayer ? closestPlayer.username : "Student"}
         />
       )}
+
+      {/* Friend's Logic: Teacher Controls */}
+      {amITeacher && <TeacherDashboard />}
+
+      {/* Friend's Logic: Full Dashboard */}
+      <DashboardOverlay 
+        isOpen={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+        token={accessToken}
+        isTeacher={amITeacher}
+        user={user}
+      />
 
     </div>
   );
