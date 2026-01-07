@@ -32,7 +32,7 @@ export default function HeroSection() {
       {/* BACKGROUND LAYER */}
       <div className="absolute inset-0 z-0 select-none pointer-events-none">
         <Image
-          src="/maps/lab-map-final2.jpeg" 
+          src="/maps/lab-map-final2.png" 
           alt="Virtual Campus Map"
           fill
           className="object-cover opacity-60 dark:opacity-40 pixelated"

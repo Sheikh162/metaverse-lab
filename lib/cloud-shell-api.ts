@@ -53,7 +53,7 @@ export const CloudAPI = {
       if (!res.ok) return { files: [] };
       return await res.json();
   },
-  
+
   readFile: async (filename: string) => {
     const res = await fetch(
       `${API_BASE_URL}/read?filename=${encodeURIComponent(filename)}`,
@@ -62,7 +62,8 @@ export const CloudAPI = {
         headers: getHeaders()
       }
     );
-    return await res.json();
+    const rawContent = await res.text();
+    return { content: rawContent };
   },
 
   deleteFile: async (filename: string) => {

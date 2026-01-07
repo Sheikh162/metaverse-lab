@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Image from "next/image"; 
 import { GAME_CONFIG } from "@/lib/game-config";
 
@@ -12,19 +11,14 @@ export default function WorldMap() {
     >
       {/* 1. THE PIXEL ART MAP */}
       <Image 
-        src="/maps/lab-map-final2.jpeg" 
+        src="/maps/lab-map-final2.png" 
         alt="NetVerse Campus"
         fill
         className="object-cover pixelated" 
         priority
+        unoptimized
       />
 
-      {/* 2. Optional Debug Overlay (Keep it hidden/commented if not needed) */}
-      {/* <div className="absolute inset-0 pointer-events-none opacity-30">
-        <div className="absolute top-[640px] left-[640px] w-20 h-20 border-4 border-primary" />
-        <div className="absolute top-[480px] left-[2240px] w-20 h-20 border-4 border-destructive" />
-        <div className="absolute top-[1280px] left-[1184px] w-20 h-20 border-4 border-chart-2" />
-      </div> */}
     </div>
   );
 }

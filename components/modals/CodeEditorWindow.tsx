@@ -206,9 +206,9 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setCode(activeLang.snippet)} className="text-zinc-400 hover:text-white hidden sm:flex h-8 font-mono text-xs">
+            {/* <Button size="sm" variant="ghost" onClick={() => setCode(activeLang.snippet)} className="text-zinc-400 hover:text-white hidden sm:flex h-8 font-mono text-xs">
               <RotateCcw className="w-3.5 h-3.5 mr-2"/> Reset
-            </Button>
+            </Button> */}
             
             {/* AI BUTTON */}
             <Button 
