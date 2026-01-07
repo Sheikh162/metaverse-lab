@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NetVerse Labs 🌐
 
-## Getting Started
+**NetVerse Labs** is an immersive 2D virtual metaverse designed for education, collaboration, and interactive learning. Built with the latest web technologies, it features a retro-futuristic "NetVerse OS" interface where users can navigate a virtual campus, interact with stations, communicate in real-time, and access AI-powered tools.
 
-First, run the development server:
+![NetVerse Labs Banner](https://via.placeholder.com/1200x400?text=NetVerse+Labs+Preview)
+
+## 🚀 Features
+
+- **Interactive 2D World**: Explore a dynamic virtual campus with a custom-built game engine using `framer-motion`.
+- **Real-time Multiplayer**: See and interact with other users in real-time.
+- **Role-Based Experience**: Distinct interfaces and capabilities for **Students** and **Teachers** (Admins).
+- **Interactive Stations**: Approach stations to trigger specific tools:
+  - **Coding Stations**: Integrated Monaco Editor for coding exercises.
+  - **AI Tutors**: Google Gemini-powered NPC teachers for personalized assistance.
+  - **Video Conferencing**: Jitsi-powered meeting rooms.
+- **Retro "NetVerse OS" UI**: A stylish, responsive HUD with minimap, dashboard, and notifications.
+- **Secure Authentication**: Firebase-powered user management.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
+- **UI Components**: [Shadcn UI](https://ui.shadcn.com/) (Radix Primitives), [Lucide React](https://lucide.dev/)
+- **Animations**: [Motion](https://motion.dev/) (Framer Motion)
+- **Backend & Auth**: [Firebase](https://firebase.google.com/)
+- **AI**: [Google Generative AI](https://ai.google.dev/) (Gemini)
+- **Real-time**: Custom hooks & Firebase Realtime Database/Firestore
+
+## 📂 Project Structure
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+├── app/                  # Next.js App Router pages
+│   ├── lab/              # Main game environment
+│   └── page.tsx          # Landing page
+├── components/
+│   ├── game/             # Core game engine (Player, Map, Engine)
+│   ├── hud/              # Heads-up display components
+│   ├── ui/               # Reusable UI components (Shadcn)
+│   └── landing/          # Landing page sections
+├── hooks/                # Custom hooks (useMultiplayer, useAuth)
+├── lib/                  # Utilities and game configuration
+└── public/               # Static assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🏁 Getting Started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Node.js 18+ 
+- npm, pnpm, or yarn
 
-## Learn More
+### Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/metaverse-lab.git
+   cd metaverse-lab
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Environment Setup**
+   Create a `.env` file in the root directory based on `.env.example`. You will need credentials for:
+   - Firebase (API Key, Auth Domain, Project ID, etc.)
+   - Google Generative AI (API Key)
 
-## Deploy on Vercel
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
