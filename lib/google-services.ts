@@ -4,7 +4,10 @@
  * Helper function to route requests through our server-side proxy.
  * This bypasses CORS issues and handles token authentication.
  */
-async function proxyFetch(token: string, endpoint: string, baseUrl?: string, method = "GET", body?: any) {
+const ROSTER_SHEET_ID = "1IgAUKFotHXzffeyR1V9dtcwdsxlcRIefkzb5TWEEfV8";
+
+
+export async function proxyFetch(token: string, endpoint: string, baseUrl?: string, method = "GET", body?: any) {
   try {
     const res = await fetch("/api/google-proxy", {
       method: "POST",
@@ -54,26 +57,26 @@ export async function fetchAssignments(token: string, courseId: string) {
   }
 }
 
-export async function createCourse(token: string, name: string, section: string) {
-  try {
-    const data = await proxyFetch(
-      token,
-      "/v1/courses",
-      "https://classroom.googleapis.com",
-      "POST",
-      {
-        name,
-        section,
-        ownerId: "me",
-        courseState: "PROVISIONED"
-      }
-    );
-    return data;
-  } catch (error) {
-    console.error("Error creating course:", error);
-    throw error;
-  }
-}
+// export async function createCourse(token: string, name: string, section: string) {
+//   try {
+//     const data = await proxyFetch(
+//       token,
+//       "/v1/courses",
+//       "https://classroom.googleapis.com",
+//       "POST",
+//       {
+//         name,
+//         section,
+//         ownerId: "me",
+//         courseState: "PROVISIONED"
+//       }
+//     );
+//     return data;
+//   } catch (error) {
+//     console.error("Error creating course:", error);
+//     throw error;
+//   }
+// }
 
 // Teacher Only: Post an announcement to the stream
 export async function postAnnouncement(token: string, courseId: string, text: string) {
@@ -109,30 +112,30 @@ export async function fetchUpcomingEvents(token: string) {
   }
 }
 
-export async function createCalendarEvent(token: string, title: string, startDateTime: string) {
-  try {
-    // Default to 1 hour duration
-    const start = new Date(startDateTime);
-    const end = new Date(start.getTime() + 60 * 60 * 1000); 
+// export async function createCalendarEvent(token: string, title: string, startDateTime: string) {
+//   try {
+//     // Default to 1 hour duration
+//     const start = new Date(startDateTime);
+//     const end = new Date(start.getTime() + 60 * 60 * 1000); 
 
-    const data = await proxyFetch(
-      token,
-      "/calendar/v3/calendars/primary/events",
-      "https://www.googleapis.com",
-      "POST",
-      {
-        summary: title,
-        description: "Metaverse Lab Session created via NetVerse OS",
-        start: { dateTime: start.toISOString() },
-        end: { dateTime: end.toISOString() }
-      }
-    );
-    return data;
-  } catch (error) {
-    console.error("Error creating event:", error);
-    throw error;
-  }
-}
+//     const data = await proxyFetch(
+//       token,
+//       "/calendar/v3/calendars/primary/events",
+//       "https://www.googleapis.com",
+//       "POST",
+//       {
+//         summary: title,
+//         description: "Metaverse Lab Session created via NetVerse OS",
+//         start: { dateTime: start.toISOString() },
+//         end: { dateTime: end.toISOString() }
+//       }
+//     );
+//     return data;
+//   } catch (error) {
+//     console.error("Error creating event:", error);
+//     throw error;
+//   }
+// }
 
 // --- SHEETS (TEACHER ONLY) ---
 
@@ -171,3 +174,96 @@ export async function createAttendanceSheet(token: string, className: string, st
     throw error;
   }
 }
+
+
+// --- HELPER: GET EMAILS ---
+async function getStudentEmails(token: string) {
+  try {
+    const data = await proxyFetch(
+      token,
+      `/v4/spreadsheets/${ROSTER_SHEET_ID}/values/A:A`, // Read Column A
+      "https://sheets.googleapis.com",
+      "GET"
+    );
+    // Flatten array: [["email1"], ["email2"]] -> ["email1", "email2"]
+    return (data.values || []).flat().filter((e: string) => e.includes("@"));
+  } catch (error) {
+    console.error("Failed to fetch roster:", error);
+    return [];
+  }
+}
+
+// --- CLASSROOM ---
+
+export async function createCourse(token: string, name: string, section: string) {
+  try {
+    // 1. Create the Course
+    const course = await proxyFetch(
+      token,
+      "/v1/courses",
+      "https://classroom.googleapis.com",
+      "POST",
+      { name, section, ownerId: "me", courseState: "PROVISIONED" }
+    );
+
+    // 2. Fetch Students & Send Invites (Async - don't wait for it)
+    getStudentEmails(token).then(async (emails) => {
+      console.log(`inviting ${emails.length} students...`);
+      for (const email of emails) {
+        await proxyFetch(
+          token,
+          "/v1/invitations",
+          "https://classroom.googleapis.com",
+          "POST",
+          {
+            userId: email,
+            courseId: course.id,
+            role: "STUDENT"
+          }
+        );
+      }
+    });
+
+    return course;
+  } catch (error) {
+    console.error("Error creating course:", error);
+    throw error;
+  }
+}
+
+// --- CALENDAR ---
+
+export async function createCalendarEvent(token: string, title: string, startDateTime: string) {
+  try {
+    // 1. Fetch Students FIRST
+    const emails = await getStudentEmails(token);
+    
+    // Convert to Calendar API format: [{email: 'a@b.com'}, {email: 'c@d.com'}]
+    const attendees = emails.map((email: any) => ({ email }));
+
+    const start = new Date(startDateTime);
+    const end = new Date(start.getTime() + 60 * 60 * 1000); 
+
+    // 2. Create Event WITH Attendees
+    const data = await proxyFetch(
+      token,
+      "/calendar/v3/calendars/primary/events?sendUpdates=all", // sendUpdates=all sends the email!
+      "https://www.googleapis.com",
+      "POST",
+      {
+        summary: title,
+        description: "Metaverse Lab Session",
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+        attendees: attendees // <--- This sends the invites
+      }
+    );
+    return data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+}
+
+// lib/google-services.ts
+

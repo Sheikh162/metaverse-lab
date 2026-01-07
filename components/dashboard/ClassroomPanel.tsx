@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ExternalLink, Book, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { broadcastEvent } from "@/lib/game-events";
+import { useAuth } from "../providers/AuthProvider";
 
 export default function ClassroomPanel({ token, isTeacher }: { token: string, isTeacher: boolean }) {
+  const { user } = useAuth(); 
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -20,6 +23,7 @@ export default function ClassroomPanel({ token, isTeacher }: { token: string, is
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSection, setNewSection] = useState("");
+  const [classes, setClasses] = useState<any[]>([]);
 
   const loadCourses = async () => {
     try {
@@ -41,8 +45,22 @@ export default function ClassroomPanel({ token, isTeacher }: { token: string, is
     if (!newName) return;
     setIsCreating(true);
     try {
-      await createCourse(token, newName, newSection || "Metaverse Lab");
-      toast.success("Classroom Request Sent Succesfully!");
+      // await createCourse(token, newName, newSection || "Metaverse Lab");
+      // toast.success("Classroom Request Sent Succesfully!");
+
+      const newCourse = await createCourse(token, newName, newSection );
+      
+      // ✅ BROADCAST TO SHEET
+      await broadcastEvent(
+        token,
+        "CLASSROOM", 
+        `New Course Created: ${newName}`, 
+        user?.displayName || "Professor",
+        newCourse.alternateLink
+      );
+      
+      toast.success("Classroom Creation Requested, Accept it in Google Classroom");
+
       setIsCreateOpen(false);
       setNewName("");
       setNewSection("");

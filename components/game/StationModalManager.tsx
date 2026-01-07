@@ -12,8 +12,12 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Coffee, Construction } from "lucide-react";
+import { Coffee, Construction, Mic, Video } from "lucide-react";
 import { GameStation } from "@/lib/game-config";
+
+// ✅ 1. IMPORT JITSI & AUTH
+import { JitsiMeeting } from "@jitsi/react-sdk";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 interface ModalManagerProps {
   activeStation: GameStation | null;
@@ -22,14 +26,17 @@ interface ModalManagerProps {
 }
 
 export default function StationModalManager({ activeStation, isOpen, onClose }: ModalManagerProps) {
+  // ✅ 2. GET USER DATA FOR THE MEETING
+  const { user } = useAuth();
+
   if (!activeStation || !isOpen) return null;
 
-  // 2. EXAM / DEV -> Code Editor
+  // --- 1. EXAM / DEV -> Code Editor ---
   if (activeStation.type === "exam" || activeStation.type === "dev") {
     return <CodeEditorWindow isOpen={isOpen} onClose={onClose} station={activeStation} />;
   }
 
-  // 3. SERVER -> Terminal
+  // --- 2. SERVER -> Terminal ---
   if (activeStation.type === "server") {
     return (
       <TerminalWindow 
@@ -41,40 +48,75 @@ export default function StationModalManager({ activeStation, isOpen, onClose }: 
     );
   }
 
-  // 4. COMMON AREA (Cafeteria) - Simple Message Dialog
+  // --- 3. COMMON AREA (CAFETERIA) -> VOICE LOUNGE INTEGRATED ---
   if (activeStation.type === "common") {
     return (
       <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
-        <DialogContent className="sm:max-w-md bg-card border-border text-card-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold font-mono">
-              <div className="p-2 bg-chart-4/20 rounded-md">
-                 <Coffee className="w-5 h-5 text-chart-4" />
-              </div>
-              {activeStation.label}
-            </DialogTitle>
-            <DialogDescription className="font-mono text-muted-foreground">
-              {activeStation.description || "A place to relax and chat with peers."}
-            </DialogDescription>
-          </DialogHeader>
+        {/* Made the modal wider (!max-w-[1000px]) and taller (!h-[80vh]) to fit video */}
+        <DialogContent className="!max-w-[1000px] !h-[80vh] bg-zinc-950 border-zinc-800 text-foreground p-0 gap-0 flex flex-col overflow-hidden">
           
-          <div className="p-6 bg-muted/30 rounded-lg border border-border text-sm text-center text-muted-foreground font-mono italic">
-             -- Voice Chat Module: [OFFLINE] --
-             <br/>
-             Coming in Patch v2.1
+          {/* Custom Header */}
+          <div className="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-4 shrink-0">
+             <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 rounded-md">
+                   <Coffee className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <DialogTitle className="font-mono text-sm font-bold text-orange-100">
+                    {activeStation.label}
+                  </DialogTitle>
+                  <DialogDescription className="text-[10px] text-zinc-400 font-mono">
+                     Global Voice Channel • Public
+                  </DialogDescription>
+                </div>
+             </div>
+             
+             <Button onClick={onClose} variant="ghost" size="sm" className="text-zinc-400 hover:text-white hover:bg-white/5 font-mono text-xs">
+                LEAVE AREA
+             </Button>
           </div>
-
-          <DialogFooter>
-            <Button onClick={onClose} variant="secondary" className="font-mono">
-              Disconnect
-            </Button>
-          </DialogFooter>
+          
+          {/* Jitsi Meeting Area */}
+          <div className="flex-1 bg-black relative">
+            <JitsiMeeting
+              roomName="NetVerse_Cafeteria_Common_Area_V1" // Fixed Room Name for Cafeteria
+              configOverwrite={{
+                startWithAudioMuted: true,
+                startWithVideoMuted: true,
+                prejoinPageEnabled: false, // Skip the "Join" screen
+                theme: 'dark'
+              }}
+              interfaceConfigOverwrite={{
+                TOOLBAR_BUTTONS: [
+                  'microphone', 'camera', 'chat', 'raisehand',
+                  'tileview', 'fullscreen', 'participants-pane'
+                ],
+                SHOW_JITSI_WATERMARK: false,
+              }}
+              userInfo={{
+                displayName: user?.displayName || "Student",
+                email: user?.email || ""
+              }}
+              getIFrameRef={(iframeRef) => {
+                iframeRef.style.height = '100%';
+                iframeRef.style.width = '100%';
+                iframeRef.style.background = '#000';
+              }}
+            />
+            
+            {/* Overlay if needed (optional) */}
+            <div className="absolute top-4 left-4 pointer-events-none opacity-50">
+               <span className="bg-black/50 text-white text-[10px] font-mono px-2 py-1 rounded border border-white/10">
+                 NETVERSE LIVE FEED
+               </span>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  // 5. SAFETY FALLBACK (Prevents Freezing for unknown types)
+  // --- 4. SAFETY FALLBACK ---
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="bg-destructive/10 border-destructive text-foreground">

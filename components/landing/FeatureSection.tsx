@@ -58,7 +58,7 @@ export default function FeatureSection() {
             transition={{ delay: 0.1 }}
             className="text-muted-foreground max-w-2xl mx-auto font-mono text-sm md:text-base"
           >
-            We replaced the boring Learning Management System (LMS) with an immersive metaverse.
+            We replaced the Monotone Learning Management System (LMS) with an immersive metaverse.
           </motion.p>
         </div>
 
