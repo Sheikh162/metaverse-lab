@@ -89,7 +89,6 @@ export default function LoginDialog({ isOpen, onOpenChange }: LoginDialogProps) 
                 <div className="relative py-2">
                    <Separator />
                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-[10px] text-muted-foreground uppercase font-mono">
-                     Student Access Only
                    </span>
                 </div>
              </div>

@@ -20,7 +20,7 @@ export default function Player({ pos, facing, isMoving, username }: PlayerProps)
 
   return (
     <motion.div
-      className="absolute flex flex-col items-center justify-center z-20 w-16 h-16 -ml-4 -mt-8"
+      className="absolute flex flex-col items-center justify-center z-20 w-32 h-32 -ml-4 -mt-8"
       animate={{ x: pos.x, y: pos.y }}
       transition={{ 
         type: "tween", 
@@ -33,7 +33,7 @@ export default function Player({ pos, facing, isMoving, username }: PlayerProps)
       <img 
         src={spriteMap[facing]} 
         alt="Player"
-        className="w-16 h-16 object-contain pixelated drop-shadow-lg" 
+        className="w-32 h-32 object-contain pixelated drop-shadow-lg" 
       />
 
       {/* 3. Username Label (Styled Badge) */}

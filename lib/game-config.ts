@@ -6,7 +6,11 @@ export const GAME_CONFIG = {
   viewportWidth: 800,
   viewportHeight: 600,
   playerSize: 48,
-  playerSpeed: 8,
+  playerSpeed: 14,
+  spawnPoints: {
+    student: { x: 400, y: 400 }, // Default spawn
+    teacher: { x: 2100, y: 1350 } // Professor's Cabin spawn
+  }
 };
 
 export interface GameStation {
@@ -45,7 +49,7 @@ export const STATIONS: GameStation[] = [
     id: "npc-professor",
     x: 2100,
     y: 1350,
-    label: "Prof. Oak",
+    label: "Professor's Cabin",
     icon: User,
     type: "npc-teacher",
     color: "bg-yellow-600",

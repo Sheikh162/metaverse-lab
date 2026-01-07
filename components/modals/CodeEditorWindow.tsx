@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { 
   Play, RotateCcw, Save, Loader2, Terminal, X, 
-  Code2, FileText, RefreshCw, Bot, Cpu
+  Code2, FileText, RefreshCw, Bot, Cpu, Plus 
 } from "lucide-react";
 
 // Shadcn Imports
@@ -28,8 +28,7 @@ import { CloudAPI } from "@/lib/cloud-shell-api";
 const LANGUAGES = [
   { id: "cpp", label: "C++ (GCC)", snippet: "#include <iostream>\n\nint main() {\n\tstd::cout << \"Hello NetVerse\";\n\treturn 0;\n}" },
   { id: "python", label: "Python 3", snippet: "print('Hello NetVerse')" },
-  { id: "javascript", label: "Node.js", snippet: "console.log('Hello NetVerse');" },
-  { id: "go", label: "Go 1.20", snippet: "package main\nimport \"fmt\"\nfunc main() {\n\tfmt.Println(\"Hello\")\n}" },
+  { id: "javascript", label: "Node.js", snippet: "console.log('Hello NetVerse');" }
 ];
 
 interface CodeEditorWindowProps {
@@ -52,10 +51,20 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
   // File System State
-  const [currentFilename, setCurrentFilename] = useState("main.cpp");
+  // 🟢 CHANGE 1: Default to "Untitled" instead of main.cpp
+  const [currentFilename, setCurrentFilename] = useState("Untitled");
   const [files, setFiles] = useState<any[]>([]);
 
-  // --- 1. INITIAL LOAD ---
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (output && terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [output]);
+
+  // Initial Load
   useEffect(() => {
     if (isOpen && user?.email) {
       refreshFiles();
@@ -70,7 +79,14 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     setIsLoadingFiles(false);
   };
 
-  // --- 2. ACTIONS ---
+  // 🟢 CHANGE 2: Add a handler to reset to a new file
+  const handleNewFile = () => {
+    setCurrentFilename("Untitled");
+    setCode(activeLang.snippet);
+    setOutput("");
+  };
+
+  // --- ACTIONS ---
   const handleRun = async () => {
     setIsRunning(true);
     setOutput("📡 Sending to Cloud VM...");
@@ -89,8 +105,9 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     if (!user?.email) return toast.error("You must be logged in to save.");
     
     let filename = currentFilename;
-    if (filename === "untitled" || filename === "main.cpp") {
-      const input = prompt("Enter filename to save (e.g., mysolution.cpp):");
+    // Check for both lowercase and capitalized versions
+    if (filename === "untitled" || filename === "Untitled") {
+      const input = prompt("Enter filename to save (e.g., main.cpp):");
       if (!input) return;
       filename = input;
     }
@@ -122,12 +139,11 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
       
       if (filename.endsWith(".py")) setActiveLang(LANGUAGES[1]);
       else if (filename.endsWith(".js")) setActiveLang(LANGUAGES[2]);
-      else if (filename.endsWith(".go")) setActiveLang(LANGUAGES[3]);
       else setActiveLang(LANGUAGES[0]);
     }
   };
 
-  // --- 3. AI ASSISTANT LOGIC ---
+  // --- AI ASSISTANT ---
   const handleAskAI = async () => {
     if (!output) {
       toast.error("Run your code first to generate an output/error for the AI to analyze!");
@@ -152,7 +168,6 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
     }
   };
 
-  // Helper to handle language change from Select component
   const onLanguageChange = (val: string) => {
     const selected = LANGUAGES.find(l => l.id === val) || LANGUAGES[0];
     setActiveLang(selected);
@@ -162,15 +177,10 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
-      {/* FIX: [&>button]:hidden removes the default Shadcn close X button. 
-        We use our own in the header.
-      */}
       <DialogContent className="!max-w-[95vw] !w-[95vw] h-[90vh] bg-[#1e1e1e] border-zinc-800 p-0 gap-0 flex flex-col overflow-hidden sm:rounded-xl shadow-2xl [&>button]:hidden">
         
         {/* --- HEADER --- */}
         <div className="h-14 bg-zinc-900 border-b border-border flex items-center justify-between px-4 shrink-0 select-none">
-          
-          {/* Left: Title & Language */}
           <div className="flex items-center gap-6">
              <div className="flex flex-col">
                <DialogTitle className="text-foreground font-bold font-mono text-sm flex items-center gap-2">
@@ -187,7 +197,6 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
                </span>
              </div>
 
-             {/* Shadcn Select Component */}
              <div className="hidden sm:block">
                 <Select value={activeLang.id} onValueChange={onLanguageChange}>
                   <SelectTrigger className="w-[140px] h-8 text-xs font-mono bg-zinc-800 border-zinc-700 text-zinc-300 focus:ring-primary">
@@ -204,13 +213,7 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
              </div>
           </div>
 
-          {/* Right: Actions */}
           <div className="flex items-center gap-2">
-            {/* <Button size="sm" variant="ghost" onClick={() => setCode(activeLang.snippet)} className="text-zinc-400 hover:text-white hidden sm:flex h-8 font-mono text-xs">
-              <RotateCcw className="w-3.5 h-3.5 mr-2"/> Reset
-            </Button> */}
-            
-            {/* AI BUTTON */}
             <Button 
               size="sm" 
               variant="outline"
@@ -222,12 +225,10 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
               <span className="hidden sm:inline">AI Hint</span>
             </Button>
 
-            {/* SAVE BUTTON */}
             <Button size="sm" variant="secondary" onClick={handleSave} className="h-8 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-mono text-xs">
-              <Save className="w-3.5 h-3.5 mr-2"/> Save
+              <Save className="w-3.5 h-3.5 mr-2"/> Save As
             </Button>
 
-            {/* RUN BUTTON */}
             <Button size="sm" onClick={handleRun} disabled={isRunning} className="h-8 bg-green-600 hover:bg-green-500 text-white shadow-[0_0_10px_rgba(22,163,74,0.4)] font-mono text-xs font-bold min-w-[80px]">
               {isRunning ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Play className="w-3.5 h-3.5 mr-2 fill-current"/>}
               RUN
@@ -248,14 +249,42 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
           <div className="w-48 bg-zinc-950 border-r border-border flex flex-col shrink-0">
             <div className="h-8 flex items-center justify-between px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-zinc-900 border-b border-zinc-800 font-mono">
               <span>Cloud Files</span>
-              <RefreshCw className={`w-3 h-3 cursor-pointer hover:text-primary transition-colors ${isLoadingFiles ? 'animate-spin' : ''}`} onClick={refreshFiles}/>
+              <div className="flex items-center gap-2">
+                {/* 🟢 CHANGE 3: "New File" Button */}
+                  <button 
+                    onClick={handleNewFile} 
+                    title="New File" 
+                    className="text-muted-foreground hover:text-green-400 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                  <button 
+                    onClick={refreshFiles} 
+                    title="Refresh Files" 
+                    className={`text-muted-foreground hover:text-primary transition-colors ${isLoadingFiles ? 'animate-spin' : ''}`}
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+              </div>
             </div>
             
             <ScrollArea className="flex-1">
                <div className="p-2 space-y-1">
+                 
+                 {/* 🟢 CHANGE 4: Visual Indicator for "Untitled" file */}
+                 {currentFilename === "Untitled" && (
+                    <button 
+                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-mono text-left transition-colors bg-primary/10 text-primary border border-primary/20 mb-1"
+                    >
+                       <FileText className="w-3.5 h-3.5 opacity-70"/>
+                       <span className="truncate italic">Untitled</span>
+                       <span className="ml-auto text-[9px] opacity-50 text-orange-400">*</span>
+                    </button>
+                 )}
+
                  {isLoadingFiles ? (
                    <div className="text-zinc-600 text-[10px] p-2 text-center font-mono">Syncing...</div>
-                 ) : files.length === 0 ? (
+                 ) : files.length === 0 && currentFilename !== "Untitled" ? (
                    <div className="text-zinc-600 text-[10px] p-2 text-center italic font-mono">No files</div>
                  ) : (
                    files.map((file) => (
@@ -277,10 +306,8 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
             </ScrollArea>
           </div>
 
-          {/* RIGHT: EDITOR + TERMINAL */}
+          {/* RIGHT: EDITOR + TERMINAL (No changes needed) */}
           <div className="flex-1 flex flex-col min-w-0">
-            
-            {/* TOP: MONACO EDITOR */}
             <div className="flex-1 relative bg-[#1e1e1e]">
                <Editor
                  height="100%"
@@ -295,12 +322,11 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
                    scrollBeyondLastLine: false,
                    automaticLayout: true,
                    padding: { top: 16 },
-                   fontFamily: "'Space Mono', monospace" // Enforcing the retro font
+                   fontFamily: "'Space Mono', monospace"
                  }}
                />
             </div>
 
-            {/* BOTTOM: TERMINAL */}
             <div className="h-48 bg-black border-t border-zinc-800 flex flex-col shrink-0">
               <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 justify-between select-none">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2 font-mono">
@@ -309,10 +335,15 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
                 <button onClick={() => setOutput("")} className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono hover:underline">Clear Log</button>
               </div>
               
-              <ScrollArea className="flex-1 font-mono text-sm">
+              <ScrollArea className="flex-1 h-full w-full font-mono text-sm">
                 <div className="p-4">
                   {output ? (
-                    <pre className="text-zinc-300 whitespace-pre-wrap font-[inherit]">{output}</pre>
+                    <>
+                      <pre className="text-zinc-300 whitespace-pre-wrap break-words font-[inherit]">
+                        {output}
+                      </pre>
+                      <div ref={terminalEndRef} className="h-px w-full" />
+                    </>
                   ) : (
                     <div className="h-32 flex flex-col items-center justify-center text-zinc-800 space-y-2 select-none">
                       <Play className="w-8 h-8 opacity-20"/>
@@ -322,7 +353,6 @@ export default function CodeEditorWindow({ isOpen, onClose, station }: CodeEdito
                 </div>
               </ScrollArea>
             </div>
-
           </div>
         </div>
       </DialogContent>

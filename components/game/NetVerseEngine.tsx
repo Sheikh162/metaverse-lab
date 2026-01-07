@@ -12,7 +12,6 @@ import StationModalManager from "./StationModalManager";
 import MiniMap from "@/components/hud/MiniMap";
 import ChatModal from "./ChatModal"; 
 import Teacher from "./Teacher"; // From Friend's Code
-import TeacherDashboard from "@/components/hud/TeacherDashboard"; // From Friend's Code
 import DashboardOverlay from "@/components/hud/DashboardOverlay"; // From Friend's Code
 
 // --- HOOKS ---
@@ -25,9 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Gamepad2, Wifi, MapPin, LayoutDashboard, Loader2 } from "lucide-react";
 
-// --- FIREBASE IMPORTS ---
-import { ref, set, onDisconnect } from "firebase/database";
-import { db } from "@/lib/firebase";
 
 export default function NetVerseEngine({ username }: { username: string }) {
   
@@ -72,6 +68,7 @@ export default function NetVerseEngine({ username }: { username: string }) {
   //       onDisconnect(statusRef).set("offline");
   //   }
   // }, [loading, amITeacher, user]);
+  
 
   // --- GAME LOOP ---
   useEffect(() => {
@@ -294,9 +291,6 @@ export default function NetVerseEngine({ username }: { username: string }) {
           partnerName={closestPlayer ? closestPlayer.username : "Student"}
         />
       )}
-
-      {/* Friend's Logic: Teacher Controls */}
-      {amITeacher && <TeacherDashboard />}
 
       {/* Friend's Logic: Full Dashboard */}
       <DashboardOverlay 
