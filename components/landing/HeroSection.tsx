@@ -9,6 +9,7 @@ import { Sparkles, Gamepad2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "@/components/providers/AuthProvider"; // Import Auth Hook
 import LoginDialog from "./LoginDialog"; // Import the new Modal
+import Link from "next/link";
 
 export default function HeroSection() {
   const { user } = useAuth();
@@ -103,7 +104,9 @@ export default function HeroSection() {
           
           <Button size="lg" variant="outline" className="h-12 px-8 bg-background/50 backdrop-blur-sm hover:bg-accent hover:text-accent-foreground border-input">
             <Sparkles className="mr-2 w-4 h-4" />
-            Watch Demo
+            <Link href="https://drive.google.com/file/d/1V8XlpWuUzcwC_AsdyKU3pUI88b1gJRWs/view">
+              Watch Demo
+            </Link>
           </Button>
         </motion.div>
 
